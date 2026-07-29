@@ -5,13 +5,21 @@ import { supabase } from '@/lib/supabase/client';
 import { useSettingsStore, defaultSettings, OverlaySettings } from '@/store/useSettingsStore';
 import SettingsPanel from '@/components/SettingsPanel';
 import LivePreview from '@/components/LivePreview';
+import { useTwitchChat } from '@/hooks/useTwitchChat';
+import { useSession } from '@/hooks/useSession';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [overlayToken, setOverlayToken] = useState<string>('');
+  const [twitchUsername, setTwitchUsername] = useState<string>('');
   
   const setAllSettings = useSettingsStore(state => state.setAllSettings);
+  const { activeSession } = useSession();
+
+  // Dashboard can also participate in master election and listen to chat
+  useTwitchChat(twitchUsername, activeSession?.id ?? null, overlayToken);
+
   
   // 16:9 Canvas Background modes
   const [canvasBg, setCanvasBg] = useState<'grid' | 'light' | 'dark' | 'game'>('grid');
@@ -40,6 +48,7 @@ export default function DashboardPage() {
 
       if (data) {
         setOverlayToken(data.overlay_token);
+        setTwitchUsername(data.twitch_username);
         
         // Map database fields to store settings
         const loadedSettings = { ...defaultSettings };

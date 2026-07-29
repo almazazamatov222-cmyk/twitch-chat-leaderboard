@@ -5,12 +5,17 @@ import { supabase } from '@/lib/supabase/client';
 import { useSettingsStore, defaultSettings, OverlaySettings } from '@/store/useSettingsStore';
 import LivePreview from '@/components/LivePreview';
 
+import { useTwitchChat } from '@/hooks/useTwitchChat';
+
 export default function OverlayPage({ params }: { params: { token: string } }) {
   const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [twitchUsername, setTwitchUsername] = useState<string>('');
   
   const setAllSettings = useSettingsStore(state => state.setAllSettings);
   const setPreviewMode = useSettingsStore(state => state.setPreviewMode);
+
+  useTwitchChat(twitchUsername, sessionId, params.token);
 
   useEffect(() => {
     // Overlay is always in real mode
@@ -28,6 +33,8 @@ export default function OverlayPage({ params }: { params: { token: string } }) {
         setLoading(false);
         return;
       }
+      
+      setTwitchUsername(settingData.twitch_username);
       
       const mapSettings = (data: any) => {
         const loadedSettings = { ...defaultSettings };
