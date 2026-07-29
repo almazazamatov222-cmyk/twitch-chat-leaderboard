@@ -75,7 +75,7 @@ export async function POST(req: Request) {
 
       if (!res.ok) {
         const errorData = await res.json();
-        if (errorData.message === 'subscription already exists') {
+        if (errorData.status === 409 || (errorData.message && errorData.message.includes('subscription already exists'))) {
           return { status: 'already_exists' };
         }
         throw new Error(JSON.stringify(errorData));
