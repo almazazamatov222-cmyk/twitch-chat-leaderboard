@@ -280,7 +280,12 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
         </div>
 
         {/* Фон */}
-        <BackgroundSection activeSection={activeSection} settings={settings} updateSettings={updateSettings} />
+        <div>
+          <AccordionHeader id="background" label="Задний фон (Виджет)" icon={ImageIcon} />
+          {activeSection === 'background' && (
+             <BackgroundSection settings={settings} updateSettings={updateSettings} />
+          )}
+        </div>
 
         {/* Анимация */}
         <div>
@@ -455,9 +460,7 @@ function TextSection({ activeSection, settings, updateSettings }: any) {
   );
 }
 
-function BackgroundSection({ activeSection, settings, updateSettings }: any) {
-  if (activeSection !== 'background') return null;
-
+function BackgroundSection({ settings, updateSettings }: any) {
   const handleFileUpload = async (e: any) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -482,17 +485,8 @@ function BackgroundSection({ activeSection, settings, updateSettings }: any) {
   };
 
   return (
-    <div>
-      <div className="w-full flex items-center justify-between p-4 bg-gray-900 border-b border-gray-800">
-        <div className="flex items-center gap-3">
-          <ImageIcon size={18} className="text-[#9146FF]" />
-          <span className="font-medium text-white">Задний фон (Виджет)</span>
-        </div>
-        <ChevronUp size={16} className="text-gray-400" />
-      </div>
-      
-      <div className="p-4 space-y-5 bg-gray-950 border-b border-gray-800">
-         <div className="space-y-2">
+    <div className="p-4 space-y-5 bg-gray-950 border-b border-gray-800">
+      <div className="space-y-2">
            <label className="text-xs text-gray-400">Режим фона</label>
            <select 
              value={settings.backgroundMode}
@@ -582,6 +576,5 @@ function BackgroundSection({ activeSection, settings, updateSettings }: any) {
            </div>
          )}
       </div>
-    </div>
   );
 }

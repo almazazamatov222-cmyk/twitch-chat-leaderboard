@@ -45,7 +45,14 @@ export default function OverlayPage({ params }: { params: { token: string } }) {
             (loadedSettings as any)[key] = data[snakeKey];
           }
         }
-        loadedSettings.rowColor = data.row_background || defaultSettings.rowColor;
+        let rawRowColor = data.row_background || defaultSettings.rowColor;
+        if (rawRowColor.startsWith('rgba')) {
+          const match = rawRowColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+          if (match) {
+            rawRowColor = '#' + [match[1], match[2], match[3]].map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+          }
+        }
+        loadedSettings.rowColor = rawRowColor;
         loadedSettings.rowGap = data.row_gap ?? defaultSettings.rowGap;
         return loadedSettings;
       };
