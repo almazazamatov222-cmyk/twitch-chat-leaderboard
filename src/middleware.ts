@@ -57,8 +57,8 @@ export async function middleware(request: NextRequest) {
   // This will refresh session if expired - required for Server Components
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Protect /fleeale routes
-  if (request.nextUrl.pathname.startsWith('/fleeale')) {
+  // Protect /dashboard routes
+  if (request.nextUrl.pathname.startsWith('/dashboard')) {
     if (!user) {
       return NextResponse.redirect(new URL('/', request.url))
     }
@@ -66,7 +66,7 @@ export async function middleware(request: NextRequest) {
 
   // Redirect to dashboard if logged in and trying to access landing
   if (request.nextUrl.pathname === '/' && user) {
-    return NextResponse.redirect(new URL('/fleeale', request.url))
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return response

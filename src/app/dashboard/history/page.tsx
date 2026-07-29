@@ -39,7 +39,7 @@ export default function HistoryPage() {
     <div className="min-h-screen bg-gray-950 text-white p-8">
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="flex items-center gap-4">
-          <Link href="/fleeale" className="p-2 hover:bg-gray-800 rounded-full transition-colors">
+          <Link href="/dashboard" className="p-2 hover:bg-gray-800 rounded-full transition-colors">
             <ArrowLeft size={24} />
           </Link>
           <h1 className="text-3xl font-bold">История стримов</h1>
@@ -54,7 +54,11 @@ export default function HistoryPage() {
         ) : (
           <div className="grid gap-4">
             {sessions.map((session) => (
-              <div key={session.id} className="bg-gray-900 border border-gray-800 p-6 rounded-xl flex items-center justify-between hover:border-[#9146FF]/50 transition-colors">
+              <Link 
+                href={`/dashboard/history/${session.id}`} 
+                key={session.id} 
+                className="bg-gray-900 border border-gray-800 p-6 rounded-xl flex items-center justify-between hover:border-[#9146FF]/50 transition-colors"
+              >
                 <div className="space-y-1">
                   <div className="font-semibold text-lg">
                     {new Date(session.started_at).toLocaleDateString('ru-RU', { 
@@ -80,7 +84,7 @@ export default function HistoryPage() {
                     <div className="text-xs text-gray-400 uppercase tracking-wider">Сообщений</div>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
