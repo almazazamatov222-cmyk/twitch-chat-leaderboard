@@ -92,7 +92,25 @@ export default function DashboardPage() {
              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
              <span className="text-sm font-medium text-gray-300">Живой предпросмотр</span>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <button 
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/twitch/subscribe', { method: 'POST' });
+                  const data = await res.json();
+                  if (data.success) {
+                    alert('Успешно подключено к Twitch! Теперь сессии будут запускаться автоматически при начале стрима.');
+                  } else {
+                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                  }
+                } catch (e) {
+                  alert('Ошибка сети.');
+                }
+              }}
+              className="px-3 py-1 text-xs rounded transition-colors bg-[#9146FF]/20 text-[#9146FF] hover:bg-[#9146FF]/40 font-bold border border-[#9146FF]/30 mr-4"
+            >
+              Подключить Twitch Автоматизацию
+            </button>
             <button onClick={() => setCanvasBg('grid')} className={`px-3 py-1 text-xs rounded transition-colors ${canvasBg === 'grid' ? 'bg-[#9146FF] text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>Сетка</button>
             <button onClick={() => setCanvasBg('light')} className={`px-3 py-1 text-xs rounded transition-colors ${canvasBg === 'light' ? 'bg-[#9146FF] text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>Светлый</button>
             <button onClick={() => setCanvasBg('dark')} className={`px-3 py-1 text-xs rounded transition-colors ${canvasBg === 'dark' ? 'bg-[#9146FF] text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>Тёмный</button>
