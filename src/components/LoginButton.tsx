@@ -13,7 +13,7 @@ export default function LoginButton() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'twitch',
         options: {
-          redirectTo: `${window.location.origin}/fleeale`,
+          redirectTo: `${window.location.origin}/auth/callback`,
           scopes: 'chat:read'
         }
       });
