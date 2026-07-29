@@ -59,7 +59,7 @@ export function useMessageStats(sessionId: string | null) {
 
     // 2. Subscribe to realtime updates
     const subscription = supabase
-      .channel(`stats_${sessionId}`)
+      .channel(`stats_${sessionId}_${crypto.randomUUID()}`)
       .on('postgres_changes', {
         event: '*', // INSERT or UPDATE
         schema: 'public',

@@ -18,7 +18,8 @@ export function useSession() {
     fetchActiveSession();
 
     // Subscribe to session changes
-    const sub = supabase.channel('session_changes')
+    const channelId = `session_changes_${crypto.randomUUID()}`;
+    const sub = supabase.channel(channelId)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',

@@ -80,7 +80,7 @@ export default function OverlayPage({ params }: { params: { token: string } }) {
       });
 
       // 2. Subscribe to settings changes
-      const settingsSub = supabase.channel('settings_changes')
+      const settingsSub = supabase.channel(`settings_changes_${crypto.randomUUID()}`)
         .on('postgres_changes', { 
           event: 'UPDATE', 
           schema: 'public', 
@@ -144,7 +144,7 @@ export default function OverlayPage({ params }: { params: { token: string } }) {
       
       await fetchSession();
 
-      const sessionSub = supabase.channel('session_changes')
+      const sessionSub = supabase.channel(`session_changes_${crypto.randomUUID()}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: `user_id=eq.${settingData.user_id}` }, () => {
           fetchSession();
         })
