@@ -99,7 +99,7 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
       {/* URL OBS */}
       <div className="p-4 border-b border-gray-800 bg-[#9146FF]/5">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-semibold text-[#9146FF] uppercase tracking-wider">URL для OBS (1920x1080)</h3>
+          <h3 className="text-xs font-semibold text-[#9146FF] uppercase tracking-wider">URL для OBS (рекомендуется 500x800)</h3>
         </div>
         <div className="flex gap-2">
           <input 
@@ -150,21 +150,7 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
                 )}
               </div>
 
-              <div className="space-y-3 pt-2 border-t border-gray-800">
-                <label className="text-sm font-medium">Отображаемые элементы</label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={settings.elementShowRank} onChange={(e) => updateSettings({ elementShowRank: e.target.checked })} className="accent-[#9146FF] w-4 h-4 rounded" />
-                  <span className="text-sm text-gray-300">Место (Позиция)</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={settings.elementShowName} onChange={(e) => updateSettings({ elementShowName: e.target.checked })} className="accent-[#9146FF] w-4 h-4 rounded" />
-                  <span className="text-sm text-gray-300">Никнейм зрителя</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input type="checkbox" checked={settings.elementShowCount} onChange={(e) => updateSettings({ elementShowCount: e.target.checked })} className="accent-[#9146FF] w-4 h-4 rounded" />
-                  <span className="text-sm text-gray-300">Счётчик сообщений</span>
-                </label>
-              </div>
+
             </div>
           )}
         </div>

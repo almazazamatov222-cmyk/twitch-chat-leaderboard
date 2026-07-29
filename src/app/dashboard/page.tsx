@@ -96,7 +96,14 @@ export default function DashboardPage() {
             <button 
               onClick={async () => {
                 try {
-                  const res = await fetch('/api/twitch/subscribe', { method: 'POST' });
+                  const { data: { session } } = await supabase.auth.getSession();
+                  
+                  const res = await fetch('/api/twitch/subscribe', { 
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${session?.access_token || ''}`
+                    }
+                  });
                   const data = await res.json();
                   if (data.success) {
                     alert('Успешно подключено к Twitch! Теперь сессии будут запускаться автоматически при начале стрима.');
@@ -129,16 +136,14 @@ export default function DashboardPage() {
           }}
         >
           {/* 16:9 Aspect Ratio Container for OBS simulation */}
-          <div className="w-full max-w-[1920px] aspect-video border border-gray-600/50 shadow-2xl relative overflow-hidden rounded shadow-black/50"
+          <div className="w-full max-w-[500px] h-[800px] border border-gray-600/50 shadow-2xl relative overflow-hidden rounded shadow-black/50"
                style={{ 
-                 /* We render at 1920x1080 logical size, scaled down to fit flex container automatically by CSS */
                  containerType: 'size',
                }}
           >
              <div className="absolute inset-0 w-full h-full flex items-center justify-center">
-               {/* This wrapper simulates the browser source base resolution */}
-               <div className="w-[1920px] h-[1080px] origin-center relative pointer-events-none" style={{
-                 transform: 'scale(min(100cqi / 1920, 100cqb / 1080))'
+               <div className="w-[500px] h-[800px] origin-center relative pointer-events-none" style={{
+                 transform: 'scale(min(100cqi / 500, 100cqb / 800))'
                }}>
                  <LivePreview />
                </div>

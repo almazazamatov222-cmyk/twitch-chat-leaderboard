@@ -151,50 +151,44 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
               >
                 <div className="flex items-center gap-4 w-full z-10 relative">
                   {/* Position */}
-                  {settings.elementShowRank && (
-                    <div 
-                      style={{ 
-                        ...getTextStyle('position'),
-                        color: getPositionColor(index),
-                        width: '40px',
-                        textAlign: 'center',
-                        textShadow: settings.positionShadowColor !== 'transparent' ? `${settings.positionShadowOpacity} ${settings.positionShadowColor}` : 'none'
-                      }}
-                    >
-                      #{index + 1}
-                    </div>
-                  )}
+                  <div 
+                    style={{ 
+                      ...getTextStyle('position'),
+                      color: getPositionColor(index),
+                      width: '40px',
+                      textAlign: 'center',
+                      textShadow: settings.positionShadowColor !== 'transparent' ? `${settings.positionShadowOpacity} ${settings.positionShadowColor}` : 'none'
+                    }}
+                  >
+                    #{index + 1}
+                  </div>
 
                   {/* Username */}
-                  {settings.elementShowName && (
-                    <div 
-                      className="flex-1 truncate"
-                      style={{ 
-                        ...getTextStyle('username'),
-                        textShadow: settings.usernameShadowColor !== 'transparent' ? `${settings.usernameShadowOpacity} ${settings.usernameShadowColor}` : 'none'
-                      }}
-                    >
-                      {user.username}
-                    </div>
-                  )}
+                  <div 
+                    className="flex-1 truncate"
+                    style={{ 
+                      ...getTextStyle('username'),
+                      textShadow: settings.usernameShadowColor !== 'transparent' ? `${settings.usernameShadowOpacity} ${settings.usernameShadowColor}` : 'none'
+                    }}
+                  >
+                    {user.username}
+                  </div>
 
                   {/* Counter */}
-                  {settings.elementShowCount && (
-                    <motion.div 
-                      key={`${user.id}-${user.count}`}
-                      initial={settings.counterAnimation === 'pop' ? { scale: 1.5, color: settings.highlightColor } : false}
-                      animate={{ scale: 1, color: settings.counterColor }}
-                      transition={{ duration: 0.3 }}
-                      className="whitespace-nowrap"
-                      style={{ 
-                        ...getTextStyle('counter'),
-                        fontVariantNumeric: 'tabular-nums',
-                        textShadow: settings.counterShadowColor !== 'transparent' ? `${settings.counterShadowOpacity} ${settings.counterShadowColor}` : 'none'
-                      }}
-                    >
-                      {user.count.toLocaleString('ru-RU')}
-                    </motion.div>
-                  )}
+                  <motion.div 
+                    key={`${user.id}-${user.count}`}
+                    initial={settings.counterAnimation === 'pop' ? { scale: 1.5, color: settings.highlightColor } : false}
+                    animate={{ scale: 1, color: settings.counterColor }}
+                    transition={{ duration: 0.3 }}
+                    className="whitespace-nowrap"
+                    style={{ 
+                      ...getTextStyle('counter'),
+                      fontVariantNumeric: 'tabular-nums',
+                      textShadow: settings.counterShadowColor !== 'transparent' ? `${settings.counterShadowOpacity} ${settings.counterShadowColor}` : 'none'
+                    }}
+                  >
+                    {user.count.toLocaleString('ru-RU')}
+                  </motion.div>
                 </div>
                 
                 {/* Optional highlight flash overlay could go here */}
