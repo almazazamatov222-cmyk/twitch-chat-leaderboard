@@ -101,25 +101,42 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
 
   const variants = getVariants();
 
+  const hexToRgba = (hex: string, opacity: number) => {
+    if (!hex) return 'transparent';
+    const r = parseInt(hex.slice(1, 3), 16) || 0;
+    const g = parseInt(hex.slice(3, 5), 16) || 0;
+    const b = parseInt(hex.slice(5, 7), 16) || 0;
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  };
+
   return (
     <div 
-      className="w-full h-full flex flex-col box-border"
-      style={{ 
-        width: settings.rowWidth,
-        margin: '0 auto',
+      className="w-full h-full min-h-screen overflow-hidden flex flex-col items-center justify-center relative p-8"
+      style={{
+        backgroundColor: hexToRgba(settings.backgroundColor, settings.backgroundOpacity),
+        backgroundImage: settings.backgroundImagePath ? `url(${settings.backgroundImagePath})` : 'none',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
       }}
     >
-      {settings.showTitle && (
-        <h2 
-          className="mb-6 text-center"
-          style={{ 
-            ...getTextStyle('title'),
-            textShadow: settings.titleShadowColor !== 'transparent' ? `2px 2px 4px ${settings.titleShadowColor}` : 'none'
-          }}
-        >
-          {settings.titleText}
-        </h2>
-      )}
+      <div 
+        className="w-full h-full flex flex-col box-border"
+        style={{ 
+          width: settings.rowWidth,
+          margin: '0 auto',
+        }}
+      >
+        {settings.showTitle && (
+          <h2 
+            className="mb-6 text-center"
+            style={{ 
+              ...getTextStyle('title'),
+              textShadow: settings.titleShadowColor !== 'transparent' ? `2px 2px 4px ${settings.titleShadowColor}` : 'none'
+            }}
+          >
+            {settings.titleText}
+          </h2>
+        )}
 
       <div 
         className="flex-1 overflow-hidden flex flex-col relative" 
@@ -130,29 +147,22 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
             const isTop3 = index < 3 && settings.top3HighlightEnabled;
             
             return (
-              <motion.div
-                key={user.id}
-                layout={settings.rankAnimationEnabled}
-                initial={variants.initial}
-                animate={variants.animate}
-                exit={variants.exit}
-                transition={variants.transition as any}
-                className={`flex items-center justify-between relative overflow-hidden`}
-                style={{
-                  backgroundColor: (() => {
-                    const hex = settings.rowColor;
-                    const opacity = settings.rowOpacity;
-                    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-                    return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${opacity})` : hex;
-                  })(),
-                  borderRadius: settings.rowRadius,
-                  padding: settings.rowPadding,
-                  border: `${settings.rowBorderWidth} solid ${settings.rowBorderColor}`,
-                  boxShadow: settings.rowShadowEnabled ? `0px 4px 12px rgba(0,0,0,0.3)` : 'none',
-                  height: settings.rowHeight !== 'auto' ? settings.rowHeight : undefined,
-                  minHeight: settings.rowHeight === 'auto' ? '40px' : undefined
-                }}
-              >
+                <motion.div
+                  key={user.id}
+                  layout={settings.rankAnimationEnabled}
+                  initial={variants.initial}
+                  animate={variants.animate}
+                  exit={variants.exit}
+                  transition={variants.transition as any}
+                  className={`flex items-center justify-between relative overflow-hidden`}
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: parseInt(settings.rowBorderWidth) > 0 ? `${settings.rowBorderWidth} solid ${settings.rowBorderColor}` : 'none',
+                    boxShadow: settings.rowShadowEnabled ? `0px 4px 12px rgba(0,0,0,0.3)` : 'none',
+                    height: settings.rowHeight !== 'auto' ? settings.rowHeight : undefined,
+                    minHeight: settings.rowHeight === 'auto' ? '40px' : undefined
+                  }}
+                >
                 <div className="flex items-center gap-4 w-full z-10 relative">
                   {/* Position */}
                   <div 
@@ -200,6 +210,7 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
             );
           })}
         </AnimatePresence>
+      </div>
       </div>
     </div>
   );

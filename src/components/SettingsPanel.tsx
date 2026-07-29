@@ -189,7 +189,7 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
 
         {/* Строки */}
         <div>
-          <AccordionHeader id="rows" label="Строки (Дизайн)" icon={LayoutTemplate} />
+          <AccordionHeader id="rows" label="Дизайн фона" icon={Palette} />
           {activeSection === 'rows' && (
             <div className="p-4 space-y-5 bg-gray-950 border-b border-gray-800">
                <div className="space-y-4">
@@ -197,30 +197,45 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
                    <div className="space-y-1">
                      <label className="text-xs text-gray-400">Цвет фона</label>
                      <div className="flex gap-2">
-                       <input type="color" value={settings.rowColor.slice(0, 7)} onChange={(e) => updateSettings({ rowColor: e.target.value })} className="w-8 h-8 rounded border-0 p-0 cursor-pointer" />
-                       <input type="text" value={settings.rowColor} onChange={(e) => updateSettings({ rowColor: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 text-sm" />
+                       <input type="color" value={settings.backgroundColor.slice(0, 7)} onChange={(e) => updateSettings({ backgroundColor: e.target.value })} className="w-8 h-8 rounded border-0 p-0 cursor-pointer" />
+                       <input type="text" value={settings.backgroundColor} onChange={(e) => updateSettings({ backgroundColor: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 text-sm" />
                      </div>
                    </div>
                    <div className="space-y-1">
                      <label className="text-xs text-gray-400">Прозрачность фона</label>
-                     <input type="range" min="0" max="1" step="0.05" value={settings.rowOpacity} onChange={(e) => updateSettings({ rowOpacity: Number(e.target.value) })} className="w-full accent-[#9146FF] h-8" />
+                     <input type="range" min="0" max="1" step="0.05" value={settings.backgroundOpacity} onChange={(e) => updateSettings({ backgroundOpacity: Number(e.target.value) })} className="w-full accent-[#9146FF] h-8" />
                    </div>
                  </div>
 
-                 <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-xs text-gray-400">Скругление углов (px)</label>
-                      <input type="number" min="0" value={parseInt(settings.rowRadius) || 0} onChange={(e) => updateSettings({ rowRadius: `${e.target.value}px` })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
+                 <div className="space-y-2 pt-2 border-t border-gray-800">
+                    <label className="text-xs text-gray-400">Изображение (Рекомендуется 500x800)</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={settings.backgroundImagePath} 
+                        onChange={(e) => updateSettings({ backgroundImagePath: e.target.value })} 
+                        placeholder="https://..." 
+                        className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm"
+                      />
+                      <label className="cursor-pointer bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded px-3 py-1.5 flex items-center justify-center transition-colors">
+                        <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            const fileExt = file.name.split('.').pop();
+                            const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+                            const { error: uploadError } = await supabase.storage.from('backgrounds').upload(fileName, file);
+                            if (uploadError) throw uploadError;
+                            const { data } = supabase.storage.from('backgrounds').getPublicUrl(fileName);
+                            updateSettings({ backgroundImagePath: data.publicUrl, backgroundMode: 'image' });
+                          } catch (err) {
+                            console.error(err);
+                            alert('Ошибка при загрузке изображения');
+                          }
+                        }} />
+                        <UploadCloud size={16} className="text-gray-300" />
+                      </label>
                     </div>
-                   <div className="space-y-1">
-                     <label className="text-xs text-gray-400">Отступ между (Gap)</label>
-                     <input type="number" value={settings.rowGap} onChange={(e) => updateSettings({ rowGap: Number(e.target.value) })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
-                   </div>
-                 </div>
-                 
-                 <div className="space-y-1">
-                     <label className="text-xs text-gray-400">Внутренние отступы (Padding)</label>
-                     <input type="text" value={settings.rowPadding} onChange={(e) => updateSettings({ rowPadding: e.target.value })} placeholder="12px 16px" className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
                  </div>
 
                  <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-800">
@@ -279,13 +294,6 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
           )}
         </div>
 
-        {/* Фон */}
-        <div>
-          <AccordionHeader id="background" label="Задний фон (Виджет)" icon={ImageIcon} />
-          {activeSection === 'background' && (
-             <BackgroundSection settings={settings} updateSettings={updateSettings} />
-          )}
-        </div>
 
         {/* Анимация */}
         <div>
@@ -457,124 +465,5 @@ function TextSection({ activeSection, settings, updateSettings }: any) {
         </div>
       </div>
     </div>
-  );
-}
-
-function BackgroundSection({ settings, updateSettings }: any) {
-  const handleFileUpload = async (e: any) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('backgrounds')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage.from('backgrounds').getPublicUrl(filePath);
-      updateSettings({ backgroundImagePath: data.publicUrl, backgroundMode: 'image' });
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      alert('Ошибка при загрузке изображения');
-    }
-  };
-
-  return (
-    <div className="p-4 space-y-5 bg-gray-950 border-b border-gray-800">
-      <div className="space-y-2">
-           <label className="text-xs text-gray-400">Режим фона</label>
-           <select 
-             value={settings.backgroundMode}
-             onChange={(e) => updateSettings({ backgroundMode: e.target.value })}
-             className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm focus:border-[#9146FF] outline-none"
-           >
-             <option value="transparent">Прозрачный (Нет фона)</option>
-             <option value="color">Сплошной цвет</option>
-             <option value="image">Изображение</option>
-           </select>
-         </div>
-
-         {settings.backgroundMode === 'color' && (
-           <div className="space-y-1">
-             <label className="text-xs text-gray-400">Цвет фона</label>
-             <div className="flex gap-2">
-               <input type="color" value={settings.backgroundColor.slice(0, 7)} onChange={(e) => updateSettings({ backgroundColor: e.target.value })} className="w-8 h-8 rounded border-0 p-0 cursor-pointer" />
-               <input type="text" value={settings.backgroundColor} onChange={(e) => updateSettings({ backgroundColor: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 text-sm" />
-             </div>
-           </div>
-         )}
-
-         {settings.backgroundMode === 'image' && (
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs text-gray-400">URL изображения</label>
-                <input 
-                  type="text" 
-                  value={settings.backgroundImagePath} 
-                  onChange={(e) => updateSettings({ backgroundImagePath: e.target.value })} 
-                  placeholder="https://example.com/image.png" 
-                  className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm focus:border-[#9146FF] outline-none" 
-                />
-              </div>
-              
-              <div className="flex items-center justify-center my-2">
-                <div className="h-px bg-gray-800 flex-1"></div>
-                <span className="px-2 text-xs text-gray-500">ИЛИ</span>
-                <div className="h-px bg-gray-800 flex-1"></div>
-              </div>
-              
-              <div className="border-2 border-dashed border-gray-700 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-900/50 transition-colors relative">
-                <input type="file" accept="image/*" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                {settings.backgroundImagePath && (settings.backgroundImagePath.startsWith('blob:') || settings.backgroundImagePath.includes('supabase')) ? (
-                  <div className="space-y-2">
-                    <img src={settings.backgroundImagePath} alt="Bg" className="w-full h-24 object-cover rounded" />
-                    <p className="text-xs text-[#9146FF] font-medium">Нажмите, чтобы заменить файл</p>
-                    <p className="text-[10px] text-gray-500">Рекомендуемый размер: 500x800</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <UploadCloud size={32} className="mx-auto text-gray-400" />
-                    <p className="text-sm font-medium">Загрузить файл в базу</p>
-                    <p className="text-xs text-[#9146FF]">(Рекомендуемый размер: 500x800)</p>
-                  </div>
-                )}
-              </div>
-
-             <div className="grid grid-cols-2 gap-4">
-               <div className="space-y-1">
-                 <label className="text-xs text-gray-400">Заполнение</label>
-                 <select value={settings.backgroundImageFit} onChange={e => updateSettings({ backgroundImageFit: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm">
-                   <option value="cover">Cover (Обрезать)</option>
-                   <option value="contain">Contain (Вместить)</option>
-                   <option value="fill">Fill (Растянуть)</option>
-                 </select>
-               </div>
-               <div className="space-y-1">
-                 <label className="text-xs text-gray-400">Размытие (Blur)</label>
-                 <input type="text" value={settings.backgroundBlur} onChange={e => updateSettings({ backgroundBlur: e.target.value })} placeholder="0px" className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm" />
-               </div>
-             </div>
-           </div>
-         )}
-
-         {/* General bg settings */}
-         {settings.backgroundMode !== 'transparent' && (
-           <div className="space-y-3 pt-3 border-t border-gray-800">
-             <div className="space-y-1">
-               <label className="text-xs text-gray-400">Прозрачность фона</label>
-               <input type="range" min="0" max="1" step="0.05" value={settings.backgroundOpacity} onChange={(e) => updateSettings({ backgroundOpacity: Number(e.target.value) })} className="w-full accent-[#9146FF] h-8" />
-             </div>
-             <div className="space-y-1">
-               <label className="text-xs text-gray-400">Скругление краёв виджета</label>
-               <input type="text" value={settings.overlayRadius} onChange={e => updateSettings({ overlayRadius: e.target.value })} placeholder="0px" className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm" />
-             </div>
-           </div>
-         )}
-      </div>
   );
 }
