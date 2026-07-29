@@ -23,10 +23,7 @@ export function useMessageStats(sessionId: string | null) {
       return;
     }
 
-    if (previewMode === 'empty') {
-      setUsers({});
-      return;
-    }
+
 
     if (!sessionId) {
       setUsers({});
@@ -85,34 +82,7 @@ export function useMessageStats(sessionId: string | null) {
     };
   }, [sessionId, previewMode]);
 
-  // Handle simulate mode
-  useEffect(() => {
-    if (previewMode !== 'simulate') return;
 
-    // Start with a small slice of demo users
-    const map: Record<string, UserMessageCount> = {};
-    const baseUsers = staticDemoUsers.slice(0, settings.topCount + 5).map(u => ({ ...u, count: Math.floor(u.count / 10) }));
-    baseUsers.forEach(u => map[u.id] = u);
-    setUsers(map);
-
-    const interval = setInterval(() => {
-      setUsers(prev => {
-        const keys = Object.keys(prev);
-        if (keys.length === 0) return prev;
-        const randomKey = keys[Math.floor(Math.random() * keys.length)];
-        
-        return {
-          ...prev,
-          [randomKey]: {
-            ...prev[randomKey],
-            count: prev[randomKey].count + Math.floor(Math.random() * 5) + 1
-          }
-        };
-      });
-    }, 800); // simulate message every 800ms
-
-    return () => clearInterval(interval);
-  }, [previewMode, settings.topCount]);
 
   const sortedUsers = Object.values(users)
     .sort((a, b) => b.count - a.count)
