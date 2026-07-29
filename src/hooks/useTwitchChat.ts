@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { ChatClient } from '@twurple/chat';
 import { useSettingsStore } from '@/store/useSettingsStore';
 
 interface MessageBatch {
@@ -21,7 +20,7 @@ export function useTwitchChat(
 
   const batchRef = useRef<MessageBatch>({});
   const isMasterRef = useRef(false);
-  const chatClientRef = useRef<ChatClient | null>(null);
+  const chatClientRef = useRef<any | null>(null);
   const highlightTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // 1. Leader Election via Supabase Presence
@@ -70,51 +69,66 @@ export function useTwitchChat(
 
   // 2. Connect to Twitch Chat IF master
   useEffect(() => {
-    if (!twitchUsername || !isMaster || previewMode !== 'real') {
-      if (chatClientRef.current) {
-        chatClientRef.current.quit();
-        chatClientRef.current = null;
+    let client: any = null;
+    let isMounted = true;
+
+    const initChat = async () => {
+      if (!twitchUsername || !isMaster || previewMode !== 'real') {
+        if (chatClientRef.current) {
+          chatClientRef.current.quit();
+          chatClientRef.current = null;
+        }
+        return;
       }
-      return;
-    }
 
-    const client = new ChatClient({ channels: [twitchUsername] });
-    chatClientRef.current = client;
+      try {
+        const { ChatClient } = await import('@twurple/chat');
+        if (!isMounted) return;
 
-    client.connect();
+        client = new ChatClient({ channels: [twitchUsername] });
+        chatClientRef.current = client;
 
-    client.onMessage(async (channel, user, text, msg) => {
-      // Filtering logic
-      if (settings.ignoreCommands && text.startsWith('!')) return;
-      if (settings.ignoreStreamer && msg.userInfo.displayName.toLowerCase() === twitchUsername.toLowerCase()) return;
-      if (settings.ignoreMods && msg.userInfo.isMod) return;
-      if (settings.ignoreVips && msg.userInfo.isVip) return;
-      if (text.length < settings.minMessageLength) return;
-      if (settings.excludedUsers.includes(msg.userInfo.displayName.toLowerCase())) return;
-      if (settings.botUsers.includes(msg.userInfo.displayName.toLowerCase())) return;
+        client.connect();
 
-      const userId = msg.userInfo.userId;
-      const displayName = msg.userInfo.displayName;
+        client.onMessage(async (channel: any, user: string, text: string, msg: any) => {
+          // Filtering logic
+          if (settings.ignoreCommands && text.startsWith('!')) return;
+          if (settings.ignoreStreamer && msg.userInfo.displayName.toLowerCase() === twitchUsername.toLowerCase()) return;
+          if (settings.ignoreMods && msg.userInfo.isMod) return;
+          if (settings.ignoreVips && msg.userInfo.isVip) return;
+          if (text.length < settings.minMessageLength) return;
+          if (settings.excludedUsers.includes(msg.userInfo.displayName.toLowerCase())) return;
+          if (settings.botUsers.includes(msg.userInfo.displayName.toLowerCase())) return;
 
-      // Add to batch
-      if (!batchRef.current[userId]) {
-        batchRef.current[userId] = { username: displayName, count: 0 };
-      }
-      batchRef.current[userId].count += 1;
+          const userId = msg.userInfo.userId;
+          const displayName = msg.userInfo.displayName;
 
-      // Trigger highlight locally for the master (other clients will get it via DB update if they listen, or we can broadcast via Realtime)
-      // Actually, to make highlights instantaneous across all clients, master should broadcast it via the same channel
-      if (settings.highlightNew) {
-        supabase.channel(`chat_sync_${sessionId}`).send({
-          type: 'broadcast',
-          event: 'highlight',
-          payload: { userId }
+          // Add to batch
+          if (!batchRef.current[userId]) {
+            batchRef.current[userId] = { username: displayName, count: 0 };
+          }
+          batchRef.current[userId].count += 1;
+
+          if (settings.highlightNew) {
+            supabase.channel(`chat_sync_${sessionId}`).send({
+              type: 'broadcast',
+              event: 'highlight',
+              payload: { userId }
+            });
+          }
         });
+      } catch (err) {
+        console.error('Failed to init ChatClient', err);
       }
-    });
+    };
+
+    initChat();
 
     return () => {
-      client.quit();
+      isMounted = false;
+      if (client) {
+        client.quit();
+      }
       chatClientRef.current = null;
     };
   }, [twitchUsername, isMaster, previewMode, settings, sessionId]);
