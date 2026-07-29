@@ -42,6 +42,16 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
         dbPayload[snakeKey] = currentSettings[key];
       }
       
+      // Strip fields that are known to cause errors (not in DB)
+      const ignoreKeys = [
+        'counter_weight', 'counter_stroke_width', 'counter_stroke_color', 
+        'counter_shadow_color', 'counter_shadow_opacity', 'counter_opacity', 
+        'counter_letter_spacing'
+      ];
+      for (const key of ignoreKeys) {
+        delete dbPayload[key];
+      }
+      
       const { error } = await supabase.from('settings').update(dbPayload).eq('overlay_token', overlayToken);
       if (error) throw error;
       setSaveStatus('saved');
@@ -73,6 +83,24 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
       {activeSection === id ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
     </button>
   );
+
+  const parseRgba = (rgbaStr: string) => {
+    if (!rgbaStr) return { hex: '#000000', opacity: 1 };
+    if (rgbaStr.startsWith('#')) return { hex: rgbaStr, opacity: 1 };
+    const match = rgbaStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+    if (match) {
+      const hex = '#' + [match[1], match[2], match[3]].map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+      return { hex, opacity: match[4] ? parseFloat(match[4]) : 1 };
+    }
+    return { hex: '#000000', opacity: 1 };
+  };
+
+  const hexToRgba = (hex: string, opacity: number) => {
+    const r = parseInt(hex.slice(1, 3), 16) || 0;
+    const g = parseInt(hex.slice(3, 5), 16) || 0;
+    const b = parseInt(hex.slice(5, 7), 16) || 0;
+    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  };
 
   return (
     <div className="flex flex-col h-full bg-gray-950 border-r border-gray-800">
@@ -191,14 +219,34 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
                  </div>
 
                  <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-800">
-                   <div className="space-y-1">
-                     <label className="text-xs text-gray-400">Цвет рамки</label>
-                     <input type="color" value={settings.rowBorderColor.slice(0, 7)} onChange={(e) => updateSettings({ rowBorderColor: e.target.value })} className="w-full h-8 rounded border-0 p-0 cursor-pointer" />
-                   </div>
-                   <div className="space-y-1">
-                     <label className="text-xs text-gray-400">Толщина рамки (px)</label>
-                     <input type="number" min="0" value={parseInt(settings.rowBorderWidth) || 0} onChange={(e) => updateSettings({ rowBorderWidth: `${e.target.value}px` })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
-                   </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-400">Цвет рамки</label>
+                      <input 
+                        type="color" 
+                        value={parseRgba(settings.rowBorderColor).hex} 
+                        onChange={(e) => updateSettings({ rowBorderColor: hexToRgba(e.target.value, parseRgba(settings.rowBorderColor).opacity) })} 
+                        className="w-full h-8 rounded border-0 p-0 cursor-pointer" 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-400 flex justify-between">
+                        Прозрачность рамки
+                        <span>{parseRgba(settings.rowBorderColor).opacity}</span>
+                      </label>
+                      <input 
+                        type="range" 
+                        min="0" 
+                        max="1" 
+                        step="0.1" 
+                        value={parseRgba(settings.rowBorderColor).opacity} 
+                        onChange={(e) => updateSettings({ rowBorderColor: hexToRgba(parseRgba(settings.rowBorderColor).hex, parseFloat(e.target.value)) })} 
+                        className="w-full accent-[#9146FF]" 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-400">Толщина (px)</label>
+                      <input type="number" min="0" value={parseInt(settings.rowBorderWidth) || 0} onChange={(e) => updateSettings({ rowBorderWidth: `${e.target.value}px` })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
+                    </div>
                  </div>
 
                  <div className="pt-3 border-t border-gray-800 space-y-3">
