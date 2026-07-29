@@ -42,18 +42,23 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
         dbPayload[snakeKey] = currentSettings[key];
       }
       
-      // Strip fields that are known to cause errors (not in DB)
-      const ignoreKeys = [
-        'counter_weight', 'counter_stroke_width', 'counter_stroke_color', 
-        'counter_shadow_color', 'counter_shadow_opacity', 'counter_opacity', 
-        'counter_letter_spacing'
-      ];
-      for (const key of ignoreKeys) {
-        delete dbPayload[key];
+      // Fetch current schema to ONLY send valid columns
+      const { data: schemaData } = await supabase.from('settings').select('*').eq('overlay_token', overlayToken).single();
+      if (schemaData) {
+        const validKeys = Object.keys(schemaData);
+        for (const key of Object.keys(dbPayload)) {
+          if (!validKeys.includes(key)) {
+            delete dbPayload[key];
+          }
+        }
       }
       
       const { error } = await supabase.from('settings').update(dbPayload).eq('overlay_token', overlayToken);
-      if (error) throw error;
+      if (error) {
+         console.error("Supabase Save Error:", error);
+         alert("Ошибка сохранения: " + error.message);
+         throw error;
+      }
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (err) {
@@ -224,29 +229,27 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
                       <input 
                         type="color" 
                         value={parseRgba(settings.rowBorderColor).hex} 
-                        onChange={(e) => updateSettings({ rowBorderColor: hexToRgba(e.target.value, parseRgba(settings.rowBorderColor).opacity) })} 
+                        onChange={(e) => updateSettings({ rowBorderColor: hexToRgba(e.target.value, 1) })} 
                         className="w-full h-8 rounded border-0 p-0 cursor-pointer" 
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs text-gray-400 flex justify-between">
-                        Прозрачность рамки
-                        <span>{parseRgba(settings.rowBorderColor).opacity}</span>
+                      <label className="text-xs text-gray-400 flex items-center gap-2">
+                        <input 
+                          type="checkbox" 
+                          checked={parseInt(settings.rowBorderWidth) > 0}
+                          onChange={(e) => updateSettings({ rowBorderWidth: e.target.checked ? '1px' : '0px' })}
+                          className="accent-[#9146FF]"
+                        />
+                        Включить рамку
                       </label>
-                      <input 
-                        type="range" 
-                        min="0" 
-                        max="1" 
-                        step="0.1" 
-                        value={parseRgba(settings.rowBorderColor).opacity} 
-                        onChange={(e) => updateSettings({ rowBorderColor: hexToRgba(parseRgba(settings.rowBorderColor).hex, parseFloat(e.target.value)) })} 
-                        className="w-full accent-[#9146FF]" 
-                      />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-gray-400">Толщина (px)</label>
-                      <input type="number" min="0" value={parseInt(settings.rowBorderWidth) || 0} onChange={(e) => updateSettings({ rowBorderWidth: `${e.target.value}px` })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
-                    </div>
+                    {parseInt(settings.rowBorderWidth) > 0 && (
+                      <div className="space-y-1 col-span-2">
+                        <label className="text-xs text-gray-400">Толщина (px)</label>
+                        <input type="number" min="1" value={parseInt(settings.rowBorderWidth) || 1} onChange={(e) => updateSettings({ rowBorderWidth: `${e.target.value}px` })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
+                      </div>
+                    )}
                  </div>
 
                  <div className="pt-3 border-t border-gray-800 space-y-3">
