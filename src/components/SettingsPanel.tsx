@@ -42,17 +42,6 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
         dbPayload[snakeKey] = currentSettings[key];
       }
       
-      // Strip fields that are known to cause errors (not in DB)
-      const ignoreKeys = [
-        'counter_weight', 'counter_stroke_width', 'counter_stroke_color', 
-        'counter_shadow_color', 'counter_shadow_opacity', 'counter_opacity', 
-        'counter_letter_spacing'
-      ];
-      for (const key of ignoreKeys) {
-        delete dbPayload[key];
-      }
-      
-      
       const { error } = await supabase.from('settings').update(dbPayload).eq('overlay_token', overlayToken);
       if (error) throw error;
       setSaveStatus('saved');
@@ -500,12 +489,13 @@ function BackgroundSection({ activeSection, settings, updateSettings }: any) {
                   <div className="space-y-2">
                     <img src={settings.backgroundImagePath} alt="Bg" className="w-full h-24 object-cover rounded" />
                     <p className="text-xs text-[#9146FF] font-medium">Нажмите, чтобы заменить файл</p>
+                    <p className="text-[10px] text-gray-500">Рекомендуемый размер: 500x800</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <UploadCloud size={32} className="mx-auto text-gray-400" />
                     <p className="text-sm font-medium">Загрузить файл в базу</p>
-                    <p className="text-xs text-gray-500">(Требуется бакет backgrounds)</p>
+                    <p className="text-xs text-[#9146FF]">(Рекомендуемый размер: 500x800)</p>
                   </div>
                 )}
               </div>
