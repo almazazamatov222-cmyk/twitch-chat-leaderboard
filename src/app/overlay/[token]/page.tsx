@@ -2,20 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { useSettingsStore, defaultSettings } from '@/store/useSettingsStore';
+import { useSettingsStore, defaultSettings, OverlaySettings } from '@/store/useSettingsStore';
 import LivePreview from '@/components/LivePreview';
-import { useTwitchChat } from '@/hooks/useTwitchChat';
 
 export default function OverlayPage({ params }: { params: { token: string } }) {
   const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [twitchUsername, setTwitchUsername] = useState<string>('');
   
   const setAllSettings = useSettingsStore(state => state.setAllSettings);
   const setPreviewMode = useSettingsStore(state => state.setPreviewMode);
-
-  // Use Twitch Chat for Leader Election and counting
-  useTwitchChat(twitchUsername, sessionId, params.token);
 
   useEffect(() => {
     // Overlay is always in real mode
@@ -34,50 +29,21 @@ export default function OverlayPage({ params }: { params: { token: string } }) {
         return;
       }
       
-      setTwitchUsername(settingData.twitch_username);
-      
-      // Map to store
-      setAllSettings({
-        ...defaultSettings,
-        titleText: settingData.title_text || defaultSettings.titleText,
-        showTitle: settingData.show_title ?? defaultSettings.showTitle,
-        topCount: settingData.top_count || defaultSettings.topCount,
-        backgroundColor: settingData.background_color || defaultSettings.backgroundColor,
-        textColor: settingData.text_color || defaultSettings.textColor,
-        fontFamily: settingData.font_family || defaultSettings.fontFamily,
-        rowBackground: settingData.row_background || defaultSettings.rowBackground,
-        rowRadius: settingData.row_radius ? `${settingData.row_radius}px` : defaultSettings.rowRadius,
-        rowGap: settingData.row_gap || defaultSettings.rowGap,
-        highlightNew: settingData.highlight_new ?? defaultSettings.highlightNew,
-        
-        width: settingData.width || defaultSettings.width,
-        height: settingData.height || defaultSettings.height,
-        scale: settingData.scale || defaultSettings.scale,
-        opacity: settingData.opacity || defaultSettings.opacity,
-        paddings: settingData.paddings || defaultSettings.paddings,
-        alignX: settingData.align_x || defaultSettings.alignX,
-        alignY: settingData.align_y || defaultSettings.alignY,
-        
-        titleFont: settingData.title_font || defaultSettings.titleFont,
-        titleSize: settingData.title_size || defaultSettings.titleSize,
-        titleColor: settingData.title_color || defaultSettings.titleColor,
-        
-        positionFont: settingData.position_font || defaultSettings.positionFont,
-        positionColor: settingData.position_color || defaultSettings.positionColor,
-        positionFormat: settingData.position_format || defaultSettings.positionFormat,
-        
-        usernameFont: settingData.username_font || defaultSettings.usernameFont,
-        usernameColor: settingData.username_color || defaultSettings.usernameColor,
-        
-        counterFont: settingData.counter_font || defaultSettings.counterFont,
-        counterColor: settingData.counter_color || defaultSettings.counterColor,
-        counterFormat: settingData.counter_format || defaultSettings.counterFormat,
-        
-        rowTemplate: settingData.row_template || defaultSettings.rowTemplate,
-        animationType: settingData.animation_type || defaultSettings.animationType,
-        ignoreCommands: settingData.ignore_commands ?? defaultSettings.ignoreCommands,
-        minMessageLength: settingData.min_message_length || defaultSettings.minMessageLength,
-      });
+      const mapSettings = (data: any) => {
+        const loadedSettings = { ...defaultSettings };
+        const keys = Object.keys(defaultSettings) as Array<keyof OverlaySettings>;
+        for (const key of keys) {
+          const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+          if (data[snakeKey] !== undefined && data[snakeKey] !== null) {
+            (loadedSettings as any)[key] = data[snakeKey];
+          }
+        }
+        loadedSettings.rowColor = data.row_background || defaultSettings.rowColor;
+        loadedSettings.rowGap = data.row_gap ?? defaultSettings.rowGap;
+        return loadedSettings;
+      };
+
+      setAllSettings(mapSettings(settingData));
 
       // 2. Subscribe to settings changes
       const settingsSub = supabase.channel(`settings_changes_${crypto.randomUUID()}`)
@@ -87,42 +53,7 @@ export default function OverlayPage({ params }: { params: { token: string } }) {
           table: 'settings',
           filter: `overlay_token=eq.${params.token}`
         }, (payload) => {
-          const data = payload.new as any;
-          setAllSettings({
-            ...defaultSettings,
-            titleText: data.title_text || defaultSettings.titleText,
-            showTitle: data.show_title ?? defaultSettings.showTitle,
-            topCount: data.top_count || defaultSettings.topCount,
-            backgroundColor: data.background_color || defaultSettings.backgroundColor,
-            textColor: data.text_color || defaultSettings.textColor,
-            fontFamily: data.font_family || defaultSettings.fontFamily,
-            rowBackground: data.row_background || defaultSettings.rowBackground,
-            rowRadius: data.row_radius ? `${data.row_radius}px` : defaultSettings.rowRadius,
-            rowGap: data.row_gap || defaultSettings.rowGap,
-            highlightNew: data.highlight_new ?? defaultSettings.highlightNew,
-            width: data.width || defaultSettings.width,
-            height: data.height || defaultSettings.height,
-            scale: data.scale || defaultSettings.scale,
-            opacity: data.opacity || defaultSettings.opacity,
-            paddings: data.paddings || defaultSettings.paddings,
-            alignX: data.align_x || defaultSettings.alignX,
-            alignY: data.align_y || defaultSettings.alignY,
-            titleFont: data.title_font || defaultSettings.titleFont,
-            titleSize: data.title_size || defaultSettings.titleSize,
-            titleColor: data.title_color || defaultSettings.titleColor,
-            positionFont: data.position_font || defaultSettings.positionFont,
-            positionColor: data.position_color || defaultSettings.positionColor,
-            positionFormat: data.position_format || defaultSettings.positionFormat,
-            usernameFont: data.username_font || defaultSettings.usernameFont,
-            usernameColor: data.username_color || defaultSettings.usernameColor,
-            counterFont: data.counter_font || defaultSettings.counterFont,
-            counterColor: data.counter_color || defaultSettings.counterColor,
-            counterFormat: data.counter_format || defaultSettings.counterFormat,
-            rowTemplate: data.row_template || defaultSettings.rowTemplate,
-            animationType: data.animation_type || defaultSettings.animationType,
-            ignoreCommands: data.ignore_commands ?? defaultSettings.ignoreCommands,
-            minMessageLength: data.min_message_length || defaultSettings.minMessageLength,
-          });
+          setAllSettings(mapSettings(payload.new));
         })
         .subscribe();
 

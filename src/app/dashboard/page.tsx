@@ -2,26 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { useSettingsStore, defaultSettings } from '@/store/useSettingsStore';
+import { useSettingsStore, defaultSettings, OverlaySettings } from '@/store/useSettingsStore';
 import SettingsPanel from '@/components/SettingsPanel';
 import LivePreview from '@/components/LivePreview';
-import { useSession } from '@/hooks/useSession';
-import { useTwitchChat } from '@/hooks/useTwitchChat';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [overlayToken, setOverlayToken] = useState<string>('');
-  const [twitchUsername, setTwitchUsername] = useState<string>('');
   
-  const settings = useSettingsStore(state => state.settings);
   const setAllSettings = useSettingsStore(state => state.setAllSettings);
   
-  const { activeSession } = useSession();
-
-  // Initialize Twitch chat hook for leader election
-  // The hook does nothing if twitchUsername or sessionId is missing
-  useTwitchChat(twitchUsername, activeSession?.id ?? null);
+  // 16:9 Canvas Background modes
+  const [canvasBg, setCanvasBg] = useState<'grid' | 'light' | 'dark' | 'game'>('grid');
 
   useEffect(() => {
     const fetchUserAndSettings = async () => {
@@ -47,50 +40,25 @@ export default function DashboardPage() {
 
       if (data) {
         setOverlayToken(data.overlay_token);
-        setTwitchUsername(data.twitch_username);
         
         // Map database fields to store settings
-        setAllSettings({
-          ...defaultSettings,
-          titleText: data.title_text || defaultSettings.titleText,
-          showTitle: data.show_title ?? defaultSettings.showTitle,
-          topCount: data.top_count || defaultSettings.topCount,
-          backgroundColor: data.background_color || defaultSettings.backgroundColor,
-          textColor: data.text_color || defaultSettings.textColor,
-          fontFamily: data.font_family || defaultSettings.fontFamily,
-          rowBackground: data.row_background || defaultSettings.rowBackground,
-          rowRadius: data.row_radius ? `${data.row_radius}px` : defaultSettings.rowRadius,
-          rowGap: data.row_gap || defaultSettings.rowGap,
-          highlightNew: data.highlight_new ?? defaultSettings.highlightNew,
-          
-          width: data.width || defaultSettings.width,
-          height: data.height || defaultSettings.height,
-          scale: data.scale || defaultSettings.scale,
-          opacity: data.opacity || defaultSettings.opacity,
-          paddings: data.paddings || defaultSettings.paddings,
-          alignX: data.align_x || defaultSettings.alignX,
-          alignY: data.align_y || defaultSettings.alignY,
-          
-          titleFont: data.title_font || defaultSettings.titleFont,
-          titleSize: data.title_size || defaultSettings.titleSize,
-          titleColor: data.title_color || defaultSettings.titleColor,
-          
-          positionFont: data.position_font || defaultSettings.positionFont,
-          positionColor: data.position_color || defaultSettings.positionColor,
-          positionFormat: data.position_format || defaultSettings.positionFormat,
-          
-          usernameFont: data.username_font || defaultSettings.usernameFont,
-          usernameColor: data.username_color || defaultSettings.usernameColor,
-          
-          counterFont: data.counter_font || defaultSettings.counterFont,
-          counterColor: data.counter_color || defaultSettings.counterColor,
-          counterFormat: data.counter_format || defaultSettings.counterFormat,
-          
-          rowTemplate: data.row_template || defaultSettings.rowTemplate,
-          animationType: data.animation_type || defaultSettings.animationType,
-          ignoreCommands: data.ignore_commands ?? defaultSettings.ignoreCommands,
-          minMessageLength: data.min_message_length || defaultSettings.minMessageLength,
-        });
+        const loadedSettings = { ...defaultSettings };
+        
+        // We do a smart mapping
+        const keys = Object.keys(defaultSettings) as Array<keyof OverlaySettings>;
+        for (const key of keys) {
+          // camelCase to snake_case mapping for DB lookup
+          const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+          if (data[snakeKey] !== undefined && data[snakeKey] !== null) {
+            (loadedSettings as any)[key] = data[snakeKey];
+          }
+        }
+        
+        // Manual fallbacks for legacy data mappings
+        loadedSettings.rowColor = data.row_background || defaultSettings.rowColor;
+        loadedSettings.rowGap = data.row_gap ?? defaultSettings.rowGap;
+
+        setAllSettings(loadedSettings);
       }
       setLoading(false);
     };
@@ -102,28 +70,52 @@ export default function DashboardPage() {
 
   return (
     <div className="flex h-screen bg-gray-950 text-white overflow-hidden font-sans">
-      <SettingsPanel overlayToken={overlayToken} />
+      {/* Левая панель - Настройки */}
+      <div className="w-[380px] lg:w-[430px] h-full flex-shrink-0 z-20 shadow-2xl relative">
+        <SettingsPanel overlayToken={overlayToken} />
+      </div>
 
-      {/* Правая панель - Предпросмотр */}
-      <div className="flex-1 relative bg-[url('https://transparenttextures.com/patterns/cubes.png')] bg-gray-800/20">
-        <div className="absolute top-4 left-4 bg-gray-900/80 px-4 py-2 rounded-lg border border-gray-700 backdrop-blur-sm z-10 flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          Живой предпросмотр
+      {/* Правая панель - Предпросмотр 16:9 */}
+      <div className="flex-1 relative flex flex-col">
+        {/* Canvas Toolbar */}
+        <div className="h-12 border-b border-gray-800 bg-gray-900/50 flex items-center justify-between px-4 z-10 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+             <span className="text-sm font-medium text-gray-300">Живой предпросмотр</span>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setCanvasBg('grid')} className={`px-3 py-1 text-xs rounded transition-colors ${canvasBg === 'grid' ? 'bg-[#9146FF] text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>Сетка</button>
+            <button onClick={() => setCanvasBg('light')} className={`px-3 py-1 text-xs rounded transition-colors ${canvasBg === 'light' ? 'bg-[#9146FF] text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>Светлый</button>
+            <button onClick={() => setCanvasBg('dark')} className={`px-3 py-1 text-xs rounded transition-colors ${canvasBg === 'dark' ? 'bg-[#9146FF] text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>Тёмный</button>
+            <button onClick={() => setCanvasBg('game')} className={`px-3 py-1 text-xs rounded transition-colors ${canvasBg === 'game' ? 'bg-[#9146FF] text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>Игра</button>
+          </div>
         </div>
-        
-        <div className="w-full h-full flex items-center justify-center p-8">
-          <div 
-            className="border-2 border-dashed border-gray-600 rounded-xl relative overflow-hidden transition-all duration-300"
-            style={{ 
-              width: '400px', 
-              height: '600px', 
-              backgroundColor: settings.backgroundColor,
-              backgroundImage: settings.bgImage ? `url(${settings.bgImage})` : 'none',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center'
-            }}
+
+        {/* Canvas Area */}
+        <div className="flex-1 overflow-hidden relative flex items-center justify-center p-4 lg:p-8"
+          style={{
+            background: canvasBg === 'grid' ? 'url(https://transparenttextures.com/patterns/cubes.png) rgba(31, 41, 55, 0.2)' :
+                       canvasBg === 'light' ? '#f3f4f6' : 
+                       canvasBg === 'dark' ? '#111827' :
+                       'url(https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop) center/cover no-repeat',
+            backgroundColor: canvasBg === 'grid' ? 'rgba(31, 41, 55, 0.2)' : undefined
+          }}
+        >
+          {/* 16:9 Aspect Ratio Container for OBS simulation */}
+          <div className="w-full max-w-[1920px] aspect-video border border-gray-600/50 shadow-2xl relative overflow-hidden rounded shadow-black/50"
+               style={{ 
+                 /* We render at 1920x1080 logical size, scaled down to fit flex container automatically by CSS */
+                 containerType: 'size',
+               }}
           >
-            <LivePreview sessionId={activeSession?.id || null} />
+             <div className="absolute inset-0 w-full h-full flex items-center justify-center">
+               {/* This wrapper simulates the browser source base resolution */}
+               <div className="w-[1920px] h-[1080px] origin-center relative pointer-events-none" style={{
+                 transform: 'scale(min(100cqi / 1920, 100cqb / 1080))'
+               }}>
+                 <LivePreview />
+               </div>
+             </div>
           </div>
         </div>
       </div>

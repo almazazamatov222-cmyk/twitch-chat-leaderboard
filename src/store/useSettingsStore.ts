@@ -2,122 +2,102 @@ import { create } from 'zustand';
 
 export interface OverlaySettings {
   // General
-  width: string;
-  height: string;
-  scale: number;
-  opacity: number;
-  paddings: string;
-  alignX: string;
-  alignY: string;
-  bgGradient: string;
-  bgImage: string;
-  bgBlur: string;
-  borderWidth: string;
-  borderColor: string;
-  borderRadius: string;
-  boxShadow: string;
-  backgroundColor: string;
-  textColor: string;
-  fontFamily: string;
-
-  // Title
+  topCount: number;
   showTitle: boolean;
   titleText: string;
+  elementShowRank: boolean;
+  elementShowName: boolean;
+  elementShowCount: boolean;
+  
+  // Title Text
   titleFont: string;
   titleSize: string;
   titleWeight: string;
-  titleItalic: boolean;
   titleColor: string;
-  titleOpacity: number;
-  titleGradient: string;
   titleStrokeWidth: string;
   titleStrokeColor: string;
-  titleShadow: string;
+  titleShadowColor: string;
+  titleShadowOpacity: number;
+  titleOpacity: number;
   titleLetterSpacing: string;
-  titleLineHeight: string;
-  titleAlign: string;
-  titleMarginTop: string;
-  titleMarginBottom: string;
-  
-  // Position
-  showPosition: boolean;
-  positionFormat: string;
-  positionSize: string;
-  positionColor: string;
+
+  // Position Text
   positionFont: string;
-  positionStroke: string;
-  positionWidth: string;
-  top1Color: string;
-  top2Color: string;
-  top3Color: string;
-  
-  // Username
-  showUsername: boolean;
+  positionSize: string;
+  positionWeight: string;
+  positionColor: string;
+  positionStrokeWidth: string;
+  positionStrokeColor: string;
+  positionShadowColor: string;
+  positionShadowOpacity: number;
+  positionOpacity: number;
+  positionLetterSpacing: string;
+
+  // Username Text
   usernameFont: string;
   usernameSize: string;
   usernameWeight: string;
   usernameColor: string;
-  usernameStroke: string;
-  usernameShadow: string;
-  usernameMaxLength: number;
-  usernameTransform: string;
-  showAvatar: boolean;
-  avatarSize: string;
-  avatarRadius: string;
-  
-  // Counter
-  showCounter: boolean;
+  usernameStrokeWidth: string;
+  usernameStrokeColor: string;
+  usernameShadowColor: string;
+  usernameShadowOpacity: number;
+  usernameOpacity: number;
+  usernameLetterSpacing: string;
+
+  // Counter Text
   counterFont: string;
   counterSize: string;
+  counterWeight: string;
   counterColor: string;
-  counterStroke: string;
-  counterShadow: string;
-  counterFormat: string;
-  
+  counterStrokeWidth: string;
+  counterStrokeColor: string;
+  counterShadowColor: string;
+  counterShadowOpacity: number;
+  counterOpacity: number;
+  counterLetterSpacing: string;
+
   // Rows
-  topCount: number;
-  rowWidth: string;
-  rowMinHeight: string;
-  rowMaxHeight: string;
-  rowPadding: string;
-  rowBackground: string;
-  rowGradient: string;
-  rowBorderWidth: string;
-  rowBorderColor: string;
+  rowColor: string; // Used in color picker visually
+  rowOpacity: number;
   rowRadius: string;
-  rowShadow: string;
-  rowInnerGap: string;
-  rowEvenBg: string;
-  rowOddBg: string;
+  rowHeight: string;
+  rowPadding: string;
   rowGap: number;
+  rowWidth: string;
+  rowBorderColor: string;
+  rowBorderWidth: string;
+  rowShadowEnabled: boolean;
   
-  // Layout
-  layoutDirection: string;
-  layoutReverse: boolean;
-  rowTemplate: string;
-  
+  // Top 3 Colors
+  top3HighlightEnabled: boolean;
+  top1Color: string;
+  top2Color: string;
+  top3Color: string;
+
+  // Background
+  backgroundMode: 'transparent' | 'color' | 'image';
+  backgroundColor: string;
+  backgroundOpacity: number;
+  backgroundImagePath: string;
+  backgroundImageFit: 'cover' | 'contain' | 'fill';
+  backgroundImagePosition: string;
+  backgroundImageOpacity: number;
+  backgroundBlur: string;
+  backgroundOverlayOpacity: number;
+  overlayRadius: string;
+
   // Animation
   animationType: string;
   animationDuration: number;
-  animationDelay: number;
-  animationEasing: string;
-  animationIntensity: number;
+  rankAnimationEnabled: boolean;
+  counterAnimation: string;
   highlightNew: boolean;
-  highlightDuration: number;
   highlightColor: string;
-  
-  // Filters
-  ignoreCommands: boolean;
-  ignoreStreamer: boolean;
-  ignoreMods: boolean;
-  ignoreVips: boolean;
-  excludedUsers: string[];
-  botUsers: string[];
-  minMessageLength: number;
-  spamProtection: boolean;
+  highlightDuration: number;
 }
 
-export type PreviewMode = 'demo' | 'real' | 'empty' | 'simulate';
+export type PreviewMode = 'demo' | 'real';
 
 interface SettingsState {
   settings: OverlaySettings;
@@ -128,33 +108,28 @@ interface SettingsState {
 }
 
 export const defaultSettings: OverlaySettings = {
-  width: '100%', height: '100%', scale: 1.0, opacity: 1.0, paddings: '24px',
-  alignX: 'center', alignY: 'top', bgGradient: 'none', bgImage: '', bgBlur: '0px',
-  borderWidth: '0px', borderColor: 'transparent', borderRadius: '0px', boxShadow: 'none', backgroundColor: 'transparent',
-  textColor: '#ffffff', fontFamily: 'Inter',
+  topCount: 10,
+  showTitle: true,
+  titleText: 'Топ чата',
+  elementShowRank: true,
+  elementShowName: true,
+  elementShowCount: true,
+
+  titleFont: 'Inter', titleSize: '24px', titleWeight: 'bold', titleColor: '#ffffff', titleStrokeWidth: '0px', titleStrokeColor: 'transparent', titleShadowColor: 'rgba(0,0,0,0.5)', titleShadowOpacity: 1, titleOpacity: 1, titleLetterSpacing: 'normal',
   
-  showTitle: true, titleText: 'Топ чата', titleFont: 'Inter', titleSize: '24px', titleWeight: 'bold',
-  titleItalic: false, titleColor: '#ffffff', titleOpacity: 1.0, titleGradient: 'none', titleStrokeWidth: '0px',
-  titleStrokeColor: 'transparent', titleShadow: 'none', titleLetterSpacing: 'normal', titleLineHeight: '1.2',
-  titleAlign: 'center', titleMarginTop: '0px', titleMarginBottom: '24px',
+  positionFont: 'Inter', positionSize: '16px', positionWeight: 'bold', positionColor: '#ffffff', positionStrokeWidth: '0px', positionStrokeColor: 'transparent', positionShadowColor: 'rgba(0,0,0,0.5)', positionShadowOpacity: 1, positionOpacity: 1, positionLetterSpacing: 'normal',
   
-  showPosition: true, positionFormat: '#{position}', positionSize: '16px', positionColor: '#ffffff',
-  positionFont: 'Inter', positionStroke: 'none', positionWidth: '30px', top1Color: '#ffd700', top2Color: '#c0c0c0', top3Color: '#cd7f32',
+  usernameFont: 'Inter', usernameSize: '16px', usernameWeight: 'normal', usernameColor: '#ffffff', usernameStrokeWidth: '0px', usernameStrokeColor: 'transparent', usernameShadowColor: 'rgba(0,0,0,0.5)', usernameShadowOpacity: 1, usernameOpacity: 1, usernameLetterSpacing: 'normal',
   
-  showUsername: true, usernameFont: 'Inter', usernameSize: '16px', usernameWeight: 'medium', usernameColor: '#ffffff',
-  usernameStroke: 'none', usernameShadow: 'none', usernameMaxLength: 20, usernameTransform: 'none', showAvatar: false, avatarSize: '24px', avatarRadius: '50%',
+  counterFont: 'Inter', counterSize: '16px', counterWeight: 'normal', counterColor: '#ffffff', counterStrokeWidth: '0px', counterStrokeColor: 'transparent', counterShadowColor: 'rgba(0,0,0,0.5)', counterShadowOpacity: 1, counterOpacity: 1, counterLetterSpacing: 'normal',
+
+  rowColor: '#000000', rowOpacity: 0.5, rowRadius: '8px', rowHeight: 'auto', rowPadding: '12px 16px', rowGap: 8, rowWidth: '100%', rowBorderColor: 'transparent', rowBorderWidth: '0px', rowShadowEnabled: false,
   
-  showCounter: true, counterFont: 'Inter', counterSize: '16px', counterColor: '#ffffff', counterStroke: 'none', counterShadow: 'none', counterFormat: '{messages}',
-  
-  topCount: 10, rowWidth: '100%', rowMinHeight: 'auto', rowMaxHeight: 'auto', rowPadding: '12px 16px', rowBackground: 'rgba(0, 0, 0, 0.5)',
-  rowGradient: 'none', rowBorderWidth: '0px', rowBorderColor: 'transparent', rowRadius: '8px', rowShadow: 'none', rowInnerGap: '16px', rowEvenBg: 'transparent', rowOddBg: 'transparent', rowGap: 8,
-  
-  layoutDirection: 'vertical', layoutReverse: false, rowTemplate: '{position} {avatar} {username} {messages}',
-  
-  animationType: 'fade', animationDuration: 0.3, animationDelay: 0, animationEasing: 'easeOut', animationIntensity: 1,
-  highlightNew: true, highlightDuration: 1, highlightColor: 'rgba(255,255,255,0.2)',
-  
-  ignoreCommands: true, ignoreStreamer: false, ignoreMods: false, ignoreVips: false, excludedUsers: [], botUsers: [], minMessageLength: 1, spamProtection: false
+  top3HighlightEnabled: true, top1Color: '#ffd700', top2Color: '#c0c0c0', top3Color: '#cd7f32',
+
+  backgroundMode: 'transparent', backgroundColor: '#000000', backgroundOpacity: 1, backgroundImagePath: '', backgroundImageFit: 'cover', backgroundImagePosition: 'center', backgroundImageOpacity: 1, backgroundBlur: '0px', backgroundOverlayOpacity: 0, overlayRadius: '0px',
+
+  animationType: 'fade', animationDuration: 0.3, rankAnimationEnabled: true, counterAnimation: 'none', highlightNew: true, highlightColor: 'rgba(255,255,255,0.2)', highlightDuration: 1
 };
 
 export const useSettingsStore = create<SettingsState>((set) => ({
