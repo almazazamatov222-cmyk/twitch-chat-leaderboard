@@ -139,8 +139,12 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
                 transition={variants.transition as any}
                 className={`flex items-center justify-between relative overflow-hidden`}
                 style={{
-                  backgroundColor: settings.rowColor,
-                  opacity: settings.rowOpacity,
+                  backgroundColor: (() => {
+                    const hex = settings.rowColor;
+                    const opacity = settings.rowOpacity;
+                    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                    return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${opacity})` : hex;
+                  })(),
                   borderRadius: settings.rowRadius,
                   padding: settings.rowPadding,
                   border: `${settings.rowBorderWidth} solid ${settings.rowBorderColor}`,

@@ -42,9 +42,6 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
         dbPayload[snakeKey] = currentSettings[key];
       }
       
-      // Override legacy specific fields if needed
-      dbPayload.row_background = currentSettings.rowColor;
-      dbPayload.row_gap = currentSettings.rowGap;
       
       const { error } = await supabase.from('settings').update(dbPayload).eq('overlay_token', overlayToken);
       if (error) throw error;
@@ -179,10 +176,10 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
                  </div>
 
                  <div className="grid grid-cols-2 gap-4">
-                   <div className="space-y-1">
-                     <label className="text-xs text-gray-400">Скругление углов</label>
-                     <input type="text" value={settings.rowRadius} onChange={(e) => updateSettings({ rowRadius: e.target.value })} placeholder="8px" className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
-                   </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-400">Скругление углов (px)</label>
+                      <input type="number" min="0" value={parseInt(settings.rowRadius) || 0} onChange={(e) => updateSettings({ rowRadius: `${e.target.value}px` })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
+                    </div>
                    <div className="space-y-1">
                      <label className="text-xs text-gray-400">Отступ между (Gap)</label>
                      <input type="number" value={settings.rowGap} onChange={(e) => updateSettings({ rowGap: Number(e.target.value) })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
@@ -200,8 +197,8 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
                      <input type="color" value={settings.rowBorderColor.slice(0, 7)} onChange={(e) => updateSettings({ rowBorderColor: e.target.value })} className="w-full h-8 rounded border-0 p-0 cursor-pointer" />
                    </div>
                    <div className="space-y-1">
-                     <label className="text-xs text-gray-400">Толщина рамки</label>
-                     <input type="text" value={settings.rowBorderWidth} onChange={(e) => updateSettings({ rowBorderWidth: e.target.value })} placeholder="1px" className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
+                     <label className="text-xs text-gray-400">Толщина рамки (px)</label>
+                     <input type="number" min="0" value={parseInt(settings.rowBorderWidth) || 0} onChange={(e) => updateSettings({ rowBorderWidth: `${e.target.value}px` })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
                    </div>
                  </div>
 
