@@ -110,22 +110,18 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
   };
 
   return (
-    <div 
-      className="w-full h-full min-h-screen overflow-hidden flex flex-col items-center justify-center relative p-8"
-      style={{
-        backgroundColor: hexToRgba(settings.backgroundColor, settings.backgroundOpacity),
-        backgroundImage: settings.backgroundImagePath ? `url(${settings.backgroundImagePath})` : 'none',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
-    >
+    <div className="w-full min-h-screen flex items-start justify-center pt-10">
       <div 
-        className="w-full h-full flex flex-col box-border"
+        className="flex flex-col box-border relative overflow-hidden rounded-xl p-8"
         style={{ 
           width: settings.rowWidth,
-          margin: '0 auto',
+          backgroundColor: hexToRgba(settings.backgroundColor, settings.backgroundOpacity),
+          backgroundImage: settings.backgroundImagePath ? `url(${settings.backgroundImagePath})` : 'none',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
         }}
       >
+
         {settings.showTitle && (
           <h2 
             className="mb-6 text-center"
@@ -157,6 +153,7 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
                   className={`flex items-center justify-between relative overflow-hidden`}
                   style={{
                     backgroundColor: 'transparent',
+                    padding: '12px 24px',
                     border: parseInt(settings.rowBorderWidth) > 0 ? `${settings.rowBorderWidth} solid ${settings.rowBorderColor}` : 'none',
                     boxShadow: settings.rowShadowEnabled ? `0px 4px 12px rgba(0,0,0,0.3)` : 'none',
                     height: settings.rowHeight !== 'auto' ? settings.rowHeight : undefined,

@@ -185,7 +185,12 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
         </div>
 
         {/* Текст */}
-        <TextSection activeSection={activeSection} settings={settings} updateSettings={updateSettings} />
+        <div>
+          <AccordionHeader id="text" label="Текст и Шрифты" icon={Type} />
+          {activeSection === 'text' && (
+            <TextSection activeSection={activeSection} settings={settings} updateSettings={updateSettings} />
+          )}
+        </div>
 
         {/* Строки */}
         <div>
@@ -350,25 +355,14 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
 function TextSection({ activeSection, settings, updateSettings }: any) {
   const [target, setTarget] = useState<'title' | 'position' | 'username' | 'counter'>('title');
 
-  if (activeSection !== 'text') return null;
-
   // Helper to map generic keys to specific element keys
   const get = (key: string) => settings[`${target}${key}`];
   const set = (key: string, val: any) => updateSettings({ [`${target}${key}`]: val });
 
   return (
-    <div>
-      <div className="w-full flex items-center justify-between p-4 bg-gray-900 border-b border-gray-800">
-        <div className="flex items-center gap-3">
-          <Type size={18} className="text-[#9146FF]" />
-          <span className="font-medium text-white">Текст и Шрифты</span>
-        </div>
-        <ChevronUp size={16} className="text-gray-400" />
-      </div>
-      
-      <div className="p-4 space-y-4 bg-gray-950 border-b border-gray-800">
-        {/* Target Selector */}
-        <div className="flex bg-gray-900 p-1 rounded-lg">
+    <div className="p-4 space-y-4 bg-gray-950 border-b border-gray-800">
+      {/* Target Selector */}
+      <div className="flex bg-gray-900 p-1 rounded-lg">
           {[
             { id: 'title', label: 'Заголовок' },
             { id: 'position', label: 'Место' },
@@ -462,7 +456,6 @@ function TextSection({ activeSection, settings, updateSettings }: any) {
             </div>
           </div>
 
-        </div>
       </div>
     </div>
   );
