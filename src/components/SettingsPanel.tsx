@@ -42,6 +42,16 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
         dbPayload[snakeKey] = currentSettings[key];
       }
       
+      // Strip fields that are known to cause errors (not in DB)
+      const ignoreKeys = [
+        'counter_weight', 'counter_stroke_width', 'counter_stroke_color', 
+        'counter_shadow_color', 'counter_shadow_opacity', 'counter_opacity', 
+        'counter_letter_spacing'
+      ];
+      for (const key of ignoreKeys) {
+        delete dbPayload[key];
+      }
+      
       
       const { error } = await supabase.from('settings').update(dbPayload).eq('overlay_token', overlayToken);
       if (error) throw error;
@@ -466,22 +476,39 @@ function BackgroundSection({ activeSection, settings, updateSettings }: any) {
          )}
 
          {settings.backgroundMode === 'image' && (
-           <div className="space-y-4">
-             <div className="border-2 border-dashed border-gray-700 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-900/50 transition-colors relative">
-               <input type="file" accept="image/*" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-               {settings.backgroundImagePath ? (
-                 <div className="space-y-2">
-                   <img src={settings.backgroundImagePath} alt="Bg" className="w-full h-24 object-cover rounded" />
-                   <p className="text-xs text-[#9146FF] font-medium">Нажмите, чтобы заменить</p>
-                 </div>
-               ) : (
-                 <div className="space-y-2">
-                   <UploadCloud size={32} className="mx-auto text-gray-400" />
-                   <p className="text-sm font-medium">Загрузить изображение</p>
-                   <p className="text-xs text-gray-500">PNG, JPG до 5MB</p>
-                 </div>
-               )}
-             </div>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs text-gray-400">URL изображения</label>
+                <input 
+                  type="text" 
+                  value={settings.backgroundImagePath} 
+                  onChange={(e) => updateSettings({ backgroundImagePath: e.target.value })} 
+                  placeholder="https://example.com/image.png" 
+                  className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm focus:border-[#9146FF] outline-none" 
+                />
+              </div>
+              
+              <div className="flex items-center justify-center my-2">
+                <div className="h-px bg-gray-800 flex-1"></div>
+                <span className="px-2 text-xs text-gray-500">ИЛИ</span>
+                <div className="h-px bg-gray-800 flex-1"></div>
+              </div>
+              
+              <div className="border-2 border-dashed border-gray-700 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-900/50 transition-colors relative">
+                <input type="file" accept="image/*" onChange={handleFileUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                {settings.backgroundImagePath && (settings.backgroundImagePath.startsWith('blob:') || settings.backgroundImagePath.includes('supabase')) ? (
+                  <div className="space-y-2">
+                    <img src={settings.backgroundImagePath} alt="Bg" className="w-full h-24 object-cover rounded" />
+                    <p className="text-xs text-[#9146FF] font-medium">Нажмите, чтобы заменить файл</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <UploadCloud size={32} className="mx-auto text-gray-400" />
+                    <p className="text-sm font-medium">Загрузить файл в базу</p>
+                    <p className="text-xs text-gray-500">(Требуется бакет backgrounds)</p>
+                  </div>
+                )}
+              </div>
 
              <div className="grid grid-cols-2 gap-4">
                <div className="space-y-1">
