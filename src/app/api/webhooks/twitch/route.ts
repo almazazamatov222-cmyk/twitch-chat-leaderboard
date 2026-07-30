@@ -123,55 +123,38 @@ export async function POST(req: Request) {
           updated_at: new Date().toISOString()
         });
 
-        // 1. Deduplication
-        const { error: dedupError } = await supabase
-          .from('processed_twitch_messages')
-          .insert({
-            message_id: msgId,
-            broadcaster_user_id: twitchId,
-            chatter_user_id: chatterId
-          });
-
-        if (dedupError) {
-          if (dedupError.code === '23505') {
-            // Already processed
-            return new NextResponse('OK (Duplicate)', { status: 200 });
-          }
-          throw dedupError;
-        }
-
-        // 2. Filters
+        // 1. Filters
         let shouldCount = true;
         if (userData.ignore_commands && text.startsWith('!')) shouldCount = false;
         if (userData.ignore_streamer && chatterId === twitchId) shouldCount = false;
         if (text.length < (userData.min_message_length || 1)) shouldCount = false;
 
         if (shouldCount) {
-          // 3. Get Active Session
-          const { data: sessionData, error: sessionErr } = await supabase
-            .rpc('get_or_create_active_session_server', { p_user_id: userId });
-            
-          if (sessionErr) throw sessionErr;
-          
-          const sessionId = sessionData;
-
-          // 4. Increment
-          const { error: incError } = await supabase.rpc('increment_message_stat_server', {
+          // 2. Atomic Processing (Dedup + Session + Increment)
+          const { error: processError } = await supabase.rpc('process_twitch_chat_message_server', {
+            p_message_id: msgId,
+            p_broadcaster_user_id: twitchId,
+            p_chatter_user_id: chatterId,
+            p_chatter_username: chatterUsername,
             p_user_id: userId,
-            p_session_id: sessionId,
-            p_twitch_user_id: chatterId,
-            p_twitch_username: chatterUsername,
             p_increment: 1
           });
 
-          if (incError) throw incError;
+          if (processError) {
+            if (processError.code === '23505') {
+              // Duplicate message_id
+              return new NextResponse('OK (Duplicate)', { status: 200 });
+            }
+            throw processError;
+          }
 
-          // 5. Update Diagnostics
+          // 3. Update Diagnostics on Success
           await supabase.from('webhook_diagnostics').upsert({
             twitch_id: twitchId,
             last_message_id: msgId,
             last_chatter_username: chatterUsername,
-            last_db_increment_at: new Date().toISOString()
+            last_db_increment_at: new Date().toISOString(),
+            last_webhook_error: null
           });
         }
       }
