@@ -7,21 +7,39 @@ import { useEffect, useState } from 'react';
 
 interface LivePreviewProps {
   sessionId?: string | null;
+  overlayToken?: string | null;
   onRealtimeStatusChange?: (status: string) => void;
+  onStatsDebug?: (debug: {
+    statsError: string | null;
+    lastStatsFetchAt: string | null;
+    rowsCount: number;
+    firstUser: { username: string; count: number } | null;
+  }) => void;
 }
 
-export default function LivePreview({ sessionId, onRealtimeStatusChange }: LivePreviewProps) {
+export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusChange, onStatsDebug }: LivePreviewProps) {
   const settings = useSettingsStore(state => state.settings);
   const previewMode = useSettingsStore(state => state.previewMode);
   
   // Real data
-  const { sortedUsers: realUsers, realtimeStatus } = useMessageStats(sessionId || null);
+  const { sortedUsers: realUsers, realtimeStatus, statsError, lastStatsFetchAt } = useMessageStats(sessionId || null, overlayToken);
 
   useEffect(() => {
     if (onRealtimeStatusChange) {
       onRealtimeStatusChange(realtimeStatus);
     }
   }, [realtimeStatus, onRealtimeStatusChange]);
+
+  useEffect(() => {
+    if (onStatsDebug) {
+      onStatsDebug({
+        statsError,
+        lastStatsFetchAt,
+        rowsCount: realUsers.length,
+        firstUser: realUsers.length > 0 ? { username: realUsers[0].username, count: realUsers[0].count } : null
+      });
+    }
+  }, [statsError, lastStatsFetchAt, realUsers, onStatsDebug]);
 
   // Demo data generator
   const [demoUsers, setDemoUsers] = useState<{id: string, username: string, count: number}[]>([]);

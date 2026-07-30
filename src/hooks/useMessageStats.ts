@@ -8,10 +8,12 @@ export interface UserMessageCount {
   count: number;
 }
 
-export function useMessageStats(sessionId: string | null) {
+export function useMessageStats(sessionId: string | null, overlayToken?: string | null) {
   const { settings } = useSettingsStore();
   const [users, setUsers] = useState<Record<string, UserMessageCount>>({});
   const [realtimeStatus, setRealtimeStatus] = useState<string>('INIT');
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [lastStatsFetchAt, setLastStatsFetchAt] = useState<string | null>(null);
   
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -33,16 +35,39 @@ export function useMessageStats(sessionId: string | null) {
 
     const fetchInitial = async () => {
       if (cancelled) return;
-      const { data, error } = await supabase
-        .from('message_stats')
-        .select('twitch_user_id, twitch_username, messages_count')
-        .eq('session_id', sessionId)
-        .order('messages_count', { ascending: false })
-        .limit(100);
+      let data, error;
+      
+      if (overlayToken) {
+        const res = await supabase.rpc('get_overlay_message_stats', {
+          p_overlay_token: overlayToken
+        });
+        data = res.data;
+        error = res.error;
+      } else {
+        const res = await supabase
+          .from('message_stats')
+          .select('twitch_user_id, twitch_username, messages_count')
+          .eq('session_id', sessionId)
+          .order('messages_count', { ascending: false })
+          .limit(100);
+        data = res.data;
+        error = res.error;
+      }
 
-      if (!error && data && !cancelled) {
+      if (cancelled) return;
+
+      if (error) {
+        console.error('Failed to fetch message stats', { sessionId, hasOverlayToken: Boolean(overlayToken), error });
+        setStatsError(error.message || 'Unknown error');
+        return;
+      }
+
+      setStatsError(null);
+      setLastStatsFetchAt(new Date().toISOString());
+
+      if (data) {
         const map: Record<string, UserMessageCount> = {};
-        data.forEach(row => {
+        data.forEach((row: any) => {
           map[row.twitch_user_id] = {
             id: row.twitch_user_id,
             username: row.twitch_username,
@@ -56,8 +81,8 @@ export function useMessageStats(sessionId: string | null) {
     const startPolling = () => {
       if (isPolling.current) return;
       isPolling.current = true;
-      // We keep a 5-second resilient fallback polling
-      pollInterval = setInterval(fetchInitial, 5000);
+      // We keep a 2-second resilient fallback polling (especially for OBS)
+      pollInterval = setInterval(fetchInitial, 2000);
     };
 
     const stopPolling = () => {
@@ -103,11 +128,13 @@ export function useMessageStats(sessionId: string | null) {
         supabase.removeChannel(subscription);
       }
     };
-  }, [sessionId]);
+  }, [sessionId, overlayToken]);
 
-  const sortedUsers = Object.values(users)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, settings.topCount);
-
-  return { sortedUsers, realtimeStatus };
+  return {
+    users,
+    sortedUsers: Object.values(users).sort((a, b) => b.count - a.count),
+    realtimeStatus,
+    statsError,
+    lastStatsFetchAt
+  };
 }

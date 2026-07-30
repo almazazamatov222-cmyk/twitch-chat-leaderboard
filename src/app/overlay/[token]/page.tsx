@@ -19,6 +19,13 @@ function OverlayContent({ token }: { token: string }) {
   const setAllSettings = useSettingsStore(state => state.setAllSettings);
   const setPreviewMode = useSettingsStore(state => state.setPreviewMode);
   
+  const [statsDebug, setStatsDebug] = useState<{
+    statsError: string | null;
+    lastStatsFetchAt: string | null;
+    rowsCount: number;
+    firstUser: { username: string; count: number } | null;
+  } | null>(null);
+
   const searchParams = useSearchParams();
   const isDemo = searchParams.get('demo') === 'true';
   const showDebug = searchParams.get('debug') === 'true';
@@ -151,7 +158,12 @@ function OverlayContent({ token }: { token: string }) {
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-transparent">
-      <LivePreview sessionId={sessionId} onRealtimeStatusChange={setRealtimeStatus} />
+      <LivePreview 
+        sessionId={sessionId} 
+        overlayToken={token} 
+        onRealtimeStatusChange={setRealtimeStatus} 
+        onStatsDebug={setStatsDebug}
+      />
       {showDebug && (
         <div className="absolute top-4 left-4 z-[999] bg-black/80 text-white p-4 rounded-lg border border-yellow-500/50 shadow-2xl text-xs font-mono max-w-sm pointer-events-none backdrop-blur-sm">
           <h3 className="text-yellow-400 font-bold mb-2 border-b border-yellow-500/30 pb-1">OVERLAY DEBUG</h3>
@@ -159,6 +171,17 @@ function OverlayContent({ token }: { token: string }) {
           <div>Settings Loaded: {settingsLoaded ? 'Yes' : 'No'}</div>
           <div>Session ID: {sessionId || 'None'}</div>
           {settingsError && <div className="text-red-400 mt-2">Error: {settingsError}</div>}
+          
+          <div className="mt-2 border-t border-yellow-500/30 pt-2">
+            <div>Realtime: {realtimeStatus}</div>
+            <div>Stats Error: {statsDebug?.statsError || 'None'}</div>
+            <div>Last Fetch: {statsDebug?.lastStatsFetchAt ? new Date(statsDebug.lastStatsFetchAt).toLocaleTimeString() : 'Never'}</div>
+            <div>Rows: {statsDebug?.rowsCount || 0}</div>
+            {statsDebug?.firstUser && (
+              <div>Top: {statsDebug.firstUser.username} ({statsDebug.firstUser.count})</div>
+            )}
+            <div>Token Valid: {settingsLoaded ? 'Yes' : 'No'}</div>
+          </div>
         </div>
       )}
       {showDebug && (
