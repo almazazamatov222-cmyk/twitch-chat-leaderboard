@@ -11,12 +11,10 @@ export interface UserMessageCount {
 export function useMessageStats(sessionId: string | null) {
   const { settings } = useSettingsStore();
   const [users, setUsers] = useState<Record<string, UserMessageCount>>({});
-  const [prevSessionId, setPrevSessionId] = useState(sessionId);
   
-  if (sessionId !== prevSessionId) {
-    setPrevSessionId(sessionId);
+  useEffect(() => {
     setUsers({});
-  }
+  }, [sessionId]);
 
   const isPolling = useRef(false);
 

@@ -15,6 +15,9 @@ export default function DashboardPage() {
   const [twitchUsername, setTwitchUsername] = useState<string>('');
   
   const setAllSettings = useSettingsStore(state => state.setAllSettings);
+  const previewMode = useSettingsStore(state => state.previewMode);
+  const setPreviewMode = useSettingsStore(state => state.setPreviewMode);
+  
   const { activeSession } = useSession();
 
   // Dashboard can also participate in master election and listen to chat
@@ -109,14 +112,14 @@ export default function DashboardPage() {
           </div>
           <div className="flex gap-2 items-center">
             <button 
-              onClick={() => useSettingsStore.getState().setPreviewMode(useSettingsStore.getState().previewMode === 'demo' ? 'real' : 'demo')}
+              onClick={() => setPreviewMode(previewMode === 'demo' ? 'real' : 'demo')}
               className={`px-3 py-1 text-xs rounded transition-colors mr-4 font-bold ${
-                useSettingsStore().previewMode === 'demo' 
+                previewMode === 'demo' 
                   ? 'bg-yellow-500/20 text-yellow-500 border border-yellow-500/50 hover:bg-yellow-500/30' 
                   : 'bg-gray-800 text-gray-400 border border-gray-700 hover:text-white hover:bg-gray-700'
               }`}
             >
-              {useSettingsStore().previewMode === 'demo' ? 'Выключить ДЕМО' : 'Включить ДЕМО'}
+              {previewMode === 'demo' ? 'Выключить ДЕМО' : 'Включить ДЕМО'}
             </button>
             {!isTwitchConnected && (
               <button 
@@ -170,7 +173,7 @@ export default function DashboardPage() {
                  containerType: 'size',
                }}
           >
-             {useSettingsStore().previewMode === 'demo' && (
+             {previewMode === 'demo' && (
                <div className="absolute -top-12 left-0 right-0 flex justify-center z-50">
                  <div className="bg-yellow-500/20 border border-yellow-500/50 text-yellow-500 px-4 py-1 rounded-full text-xs font-bold shadow-lg animate-pulse">
                    РЕЖИМ ДЕМО ДАННЫХ

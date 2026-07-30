@@ -86,6 +86,7 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
   useEffect(() => {
     const isHydrated = useSettingsStore.getState().isSettingsHydrated;
     if (isHydrated && Object.keys(debouncedSettings).length > 0 && overlayToken) {
+       // eslint-disable-next-line react-hooks/set-state-in-effect
        handleSave(debouncedSettings);
     }
   }, [debouncedSettings, handleSave, overlayToken]);
