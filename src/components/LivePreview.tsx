@@ -7,14 +7,21 @@ import { useEffect, useState } from 'react';
 
 interface LivePreviewProps {
   sessionId?: string | null;
+  onRealtimeStatusChange?: (status: string) => void;
 }
 
-export default function LivePreview({ sessionId }: LivePreviewProps) {
+export default function LivePreview({ sessionId, onRealtimeStatusChange }: LivePreviewProps) {
   const settings = useSettingsStore(state => state.settings);
   const previewMode = useSettingsStore(state => state.previewMode);
   
   // Real data
-  const { sortedUsers: realUsers } = useMessageStats(sessionId || null);
+  const { sortedUsers: realUsers, realtimeStatus } = useMessageStats(sessionId || null);
+
+  useEffect(() => {
+    if (onRealtimeStatusChange) {
+      onRealtimeStatusChange(realtimeStatus);
+    }
+  }, [realtimeStatus, onRealtimeStatusChange]);
 
   // Demo data generator
   const [demoUsers, setDemoUsers] = useState<{id: string, username: string, count: number}[]>([]);

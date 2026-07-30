@@ -61,6 +61,7 @@ export function useSession() {
       if (pollInterval) clearInterval(pollInterval);
     };
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchActiveSession();
 
     const channelId = `session_changes_${crypto.randomUUID()}`;

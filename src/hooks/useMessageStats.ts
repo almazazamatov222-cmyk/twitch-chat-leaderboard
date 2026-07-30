@@ -11,8 +11,10 @@ export interface UserMessageCount {
 export function useMessageStats(sessionId: string | null) {
   const { settings } = useSettingsStore();
   const [users, setUsers] = useState<Record<string, UserMessageCount>>({});
+  const [realtimeStatus, setRealtimeStatus] = useState<string>('INIT');
   
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUsers({});
   }, [sessionId]);
 
@@ -24,6 +26,8 @@ export function useMessageStats(sessionId: string | null) {
     let cancelled = false;
 
     if (!sessionId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRealtimeStatus('NO_SESSION');
       return;
     }
 
@@ -52,7 +56,8 @@ export function useMessageStats(sessionId: string | null) {
     const startPolling = () => {
       if (isPolling.current) return;
       isPolling.current = true;
-      pollInterval = setInterval(fetchInitial, 3000);
+      // We keep a 5-second resilient fallback polling
+      pollInterval = setInterval(fetchInitial, 5000);
     };
 
     const stopPolling = () => {
@@ -61,6 +66,7 @@ export function useMessageStats(sessionId: string | null) {
     };
 
     fetchInitial();
+    startPolling(); // Always run fallback polling
 
     subscription = supabase
       .channel(`stats_${sessionId}_${crypto.randomUUID()}`)
@@ -84,11 +90,9 @@ export function useMessageStats(sessionId: string | null) {
       })
       .subscribe((status, err) => {
         if (cancelled) return;
-        if (status === 'SUBSCRIBED') {
-          stopPolling();
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        setRealtimeStatus(status);
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
           if (err) console.error('Realtime error in message_stats:', err);
-          startPolling();
         }
       });
 
@@ -105,5 +109,5 @@ export function useMessageStats(sessionId: string | null) {
     .sort((a, b) => b.count - a.count)
     .slice(0, settings.topCount);
 
-  return { sortedUsers };
+  return { sortedUsers, realtimeStatus };
 }

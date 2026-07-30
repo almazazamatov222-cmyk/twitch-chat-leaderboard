@@ -62,13 +62,22 @@ export function useTwitchChat(twitchUsername: string, sessionId: string | null, 
     };
   }, [twitchUsername, sessionId]);
 
+  // Diagnostics state
+  const [chatStatus, setChatStatus] = useState<string>('DISCONNECTED');
+  const [joinStatus, setJoinStatus] = useState<string>('NONE');
+  const [lastMessageAt, setLastMessageAt] = useState<string | null>(null);
+  const [lastFlushAt, setLastFlushAt] = useState<string | null>(null);
+  const [lastRpcError, setLastRpcError] = useState<string | null>(null);
+  const [currentBatchSize, setCurrentBatchSize] = useState<number>(0);
+
   // Master connects to Chat and handles messages
   useEffect(() => {
     if (!isMaster || !twitchUsername || !sessionId) {
-      // If we are not master, disconnect if connected
       if (chatClientRef.current) {
         chatClientRef.current.quit();
         chatClientRef.current = null;
+        setChatStatus('DISCONNECTED');
+        setJoinStatus('NONE');
       }
       return;
     }
@@ -76,11 +85,39 @@ export function useTwitchChat(twitchUsername: string, sessionId: string | null, 
     let isMounted = true;
 
     const connectChat = async () => {
+      setChatStatus('CONNECTING');
       const client = new ChatClient();
       chatClientRef.current = client;
 
+      client.onConnect(() => {
+        if (!isMounted) return;
+        setChatStatus('CONNECTED');
+      });
+
+      client.onDisconnect((manually, reason) => {
+        if (!isMounted) return;
+        setChatStatus('DISCONNECTED: ' + (reason?.message || 'Unknown'));
+        setJoinStatus('NONE');
+      });
+
+      client.onJoin((channel, user) => {
+        if (!isMounted) return;
+        setJoinStatus('JOINED ' + channel);
+      });
+
+      client.onJoinFailure((channel, reason) => {
+        if (!isMounted) return;
+        setJoinStatus('JOIN FAILED: ' + reason);
+      });
+
+      client.onAuthenticationFailure((text, retryCount) => {
+        if (!isMounted) return;
+        setChatStatus('AUTH FAILED: ' + text);
+      });
+
       client.onMessage((channel, user, text, msg) => {
         if (!isMounted) return;
+        setLastMessageAt(new Date().toISOString());
         
         const s = settingsRef.current;
         const channelName = channel.replace('#', '').toLowerCase();
@@ -98,17 +135,26 @@ export function useTwitchChat(twitchUsername: string, sessionId: string | null, 
           batchRef.current[userId] = { username: displayName, count: 0 };
         }
         batchRef.current[userId].count += 1;
+        setCurrentBatchSize(Object.keys(batchRef.current).length);
       });
 
-      await client.connect();
-      await client.join(twitchUsername);
+      try {
+        await client.connect();
+        await client.join(twitchUsername);
+      } catch (err: Error | unknown) {
+        if (isMounted) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          setChatStatus('ERROR: ' + errorMsg);
+        }
+      }
     };
 
     const flushBatches = async () => {
       const currentBatch = { ...batchRef.current };
       if (Object.keys(currentBatch).length === 0) return;
       
-      batchRef.current = {}; // Reset immediately
+      batchRef.current = {}; 
+      if (isMounted) setCurrentBatchSize(0);
 
       const batchArray = Object.entries(currentBatch).map(([userId, data]) => ({
         id: userId,
@@ -125,7 +171,15 @@ export function useTwitchChat(twitchUsername: string, sessionId: string | null, 
           p_overlay_token: overlayToken || null
         });
         
-        if (error) throw error;
+        if (error) {
+          if (isMounted) setLastRpcError(error.message || JSON.stringify(error));
+          throw error;
+        }
+        
+        if (isMounted) {
+          setLastFlushAt(new Date().toISOString());
+          setLastRpcError(null); // clear error on success
+        }
         
         // Highlight broadcast if enabled
         if (settingsRef.current.highlightNew) {
@@ -146,6 +200,7 @@ export function useTwitchChat(twitchUsername: string, sessionId: string | null, 
           }
           batchRef.current[item.id].count += item.count;
         }
+        if (isMounted) setCurrentBatchSize(Object.keys(batchRef.current).length);
       }
     };
 
@@ -162,5 +217,13 @@ export function useTwitchChat(twitchUsername: string, sessionId: string | null, 
     };
   }, [isMaster, twitchUsername, sessionId, overlayToken]);
 
-  return { isMaster };
+  return { 
+    isMaster,
+    chatStatus,
+    joinStatus,
+    lastMessageAt,
+    lastFlushAt,
+    lastRpcError,
+    currentBatchSize
+  };
 }

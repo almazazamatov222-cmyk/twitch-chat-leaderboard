@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useSettingsStore, defaultSettings, OverlaySettings } from '@/store/useSettingsStore';
 import LivePreview from '@/components/LivePreview';
+import DiagnosticPanel from '@/components/DiagnosticPanel';
 import { useTwitchChat } from '@/hooks/useTwitchChat';
 import { useSearchParams } from 'next/navigation';
 
@@ -17,8 +18,10 @@ function OverlayContent({ token }: { token: string }) {
   
   const searchParams = useSearchParams();
   const isDemo = searchParams.get('demo') === 'true';
+  const showDebug = searchParams.get('debug') === 'true';
 
-  useTwitchChat(twitchUsername, sessionId, token);
+  const [realtimeStatus, setRealtimeStatus] = useState<string>('INIT');
+  const chatState = useTwitchChat(twitchUsername, sessionId, token);
 
   useEffect(() => {
     document.documentElement.classList.add('overlay-page');
@@ -142,7 +145,21 @@ function OverlayContent({ token }: { token: string }) {
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-transparent">
-      <LivePreview sessionId={sessionId} />
+      <LivePreview sessionId={sessionId} onRealtimeStatusChange={setRealtimeStatus} />
+      {showDebug && (
+        <DiagnosticPanel 
+          twitchUsername={twitchUsername}
+          sessionId={sessionId}
+          isMaster={chatState.isMaster}
+          chatStatus={chatState.chatStatus}
+          joinStatus={chatState.joinStatus}
+          lastMessageAt={chatState.lastMessageAt}
+          lastFlushAt={chatState.lastFlushAt}
+          lastRpcError={chatState.lastRpcError}
+          currentBatchSize={chatState.currentBatchSize}
+          realtimeStatus={realtimeStatus}
+        />
+      )}
     </div>
   );
 }

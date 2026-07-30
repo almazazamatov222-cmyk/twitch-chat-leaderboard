@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase/client';
 import { useSettingsStore, defaultSettings, OverlaySettings } from '@/store/useSettingsStore';
 import SettingsPanel from '@/components/SettingsPanel';
 import LivePreview from '@/components/LivePreview';
+import DiagnosticPanel from '@/components/DiagnosticPanel';
 import { useTwitchChat } from '@/hooks/useTwitchChat';
 import { useSession } from '@/hooks/useSession';
 
@@ -19,9 +20,10 @@ export default function DashboardPage() {
   const setPreviewMode = useSettingsStore(state => state.setPreviewMode);
   
   const { activeSession } = useSession();
+  const [realtimeStatus, setRealtimeStatus] = useState<string>('INIT');
 
   // Dashboard can also participate in master election and listen to chat
-  useTwitchChat(twitchUsername, activeSession?.id ?? null, overlayToken);
+  const chatState = useTwitchChat(twitchUsername, activeSession?.id ?? null, overlayToken);
 
   
   // 16:9 Canvas Background modes
@@ -184,10 +186,23 @@ export default function DashboardPage() {
                <div className="w-[500px] origin-top relative outline-dashed outline-1 outline-gray-500/30" style={{
                  transform: 'scale(min(100cqi / 500, 1))'
                }}>
-                 <LivePreview sessionId={activeSession?.id ?? null} />
+                 <LivePreview sessionId={activeSession?.id ?? null} onRealtimeStatusChange={setRealtimeStatus} />
                </div>
              </div>
           </div>
+          
+          <DiagnosticPanel 
+            twitchUsername={twitchUsername}
+            sessionId={activeSession?.id ?? null}
+            isMaster={chatState.isMaster}
+            chatStatus={chatState.chatStatus}
+            joinStatus={chatState.joinStatus}
+            lastMessageAt={chatState.lastMessageAt}
+            lastFlushAt={chatState.lastFlushAt}
+            lastRpcError={chatState.lastRpcError}
+            currentBatchSize={chatState.currentBatchSize}
+            realtimeStatus={realtimeStatus}
+          />
         </div>
       </div>
     </div>
