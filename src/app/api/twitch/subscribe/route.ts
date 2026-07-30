@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 const CLIENT_ID = process.env.NEXT_PUBLIC_TWITCH_CLIENT_ID || '';
 const CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || '';
 const WEBHOOK_SECRET = process.env.TWITCH_WEBHOOK_SECRET || '';
-const WEBHOOK_CALLBACK = 'https://twitch-chat-leaderboard.vercel.app/api/webhooks/twitch';
+const WEBHOOK_CALLBACK = process.env.TWITCH_WEBHOOK_CALLBACK || 'https://twitch-chat-leaderboard.vercel.app/api/webhooks/twitch';
 
 // We need service role key to insert diagnostics
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -26,12 +26,36 @@ async function getAppAccessToken() {
   return data.access_token;
 }
 
+async function saveDiagError(twitchId: string, error: string) {
+  try {
+    await supabase.from('webhook_diagnostics').upsert({
+      twitch_id: twitchId,
+      last_webhook_error: error
+    });
+  } catch (e) {
+    console.error('Failed to save diag error', e);
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const { twitchId, userId } = await req.json();
 
     if (!twitchId || !userId) {
-      return new NextResponse('Missing twitchId or userId', { status: 400 });
+      return NextResponse.json({ success: false, error: 'Missing twitchId or userId' }, { status: 400 });
+    }
+
+    const missingEnvs = [];
+    if (!CLIENT_ID) missingEnvs.push('NEXT_PUBLIC_TWITCH_CLIENT_ID');
+    if (!CLIENT_SECRET) missingEnvs.push('TWITCH_CLIENT_SECRET');
+    if (!WEBHOOK_SECRET) missingEnvs.push('TWITCH_WEBHOOK_SECRET');
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missingEnvs.push('NEXT_PUBLIC_SUPABASE_URL');
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missingEnvs.push('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (missingEnvs.length > 0) {
+      const err = `Missing environment variables: ${missingEnvs.join(', ')}`;
+      await saveDiagError(twitchId, err);
+      return NextResponse.json({ success: false, error: err }, { status: 500 });
     }
 
     const appToken = await getAppAccessToken();
@@ -43,7 +67,13 @@ export async function POST(req: Request) {
         'Authorization': `Bearer ${appToken}`,
       }
     });
+    
     const subData = await subRes.json();
+    if (!subRes.ok) {
+      const err = `Failed to fetch subscriptions: ${subData.message}`;
+      await saveDiagError(twitchId, err);
+      return NextResponse.json({ success: false, error: err }, { status: subRes.status });
+    }
 
     let existingSub = null;
     if (subData.data && Array.isArray(subData.data)) {
@@ -83,8 +113,9 @@ export async function POST(req: Request) {
       const createData = await createRes.json();
 
       if (!createRes.ok) {
-        console.error('Failed to create subscription:', createData);
-        return NextResponse.json({ success: false, error: createData.message }, { status: 400 });
+        const err = `Failed to create subscription: ${createData.message}`;
+        await saveDiagError(twitchId, err);
+        return NextResponse.json({ success: false, error: err }, { status: createRes.status });
       }
 
       subId = createData.data[0].id;
@@ -96,6 +127,7 @@ export async function POST(req: Request) {
       twitch_id: twitchId,
       subscription_status: status,
       subscription_id: subId,
+      last_webhook_error: null
     });
 
     return NextResponse.json({ success: true, status, id: subId });

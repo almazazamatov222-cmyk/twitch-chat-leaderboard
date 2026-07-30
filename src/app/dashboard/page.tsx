@@ -38,16 +38,8 @@ export default function DashboardPage() {
     }
   }, [user]);
 
-  
   // 16:9 Canvas Background modes
   const [canvasBg, setCanvasBg] = useState<'grid' | 'light' | 'dark' | 'game'>('grid');
-  const [isTwitchConnected, setIsTwitchConnected] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsTwitchConnected(localStorage.getItem('twitch_connected') === 'true');
-    }
-  }, []);
 
   useEffect(() => {
     const fetchUserAndSettings = async () => {
@@ -114,7 +106,7 @@ export default function DashboardPage() {
     <div className="flex h-screen bg-gray-950 text-white overflow-hidden font-sans">
       {/* Левая панель - Настройки */}
       <div className="w-[380px] lg:w-[430px] h-full flex-shrink-0 z-20 shadow-2xl relative">
-        <SettingsPanel overlayToken={overlayToken} />
+        <SettingsPanel overlayToken={overlayToken} twitchId={user?.user_metadata?.provider_id || null} />
       </div>
 
       {/* Правая панель - Предпросмотр 16:9 */}
@@ -136,35 +128,6 @@ export default function DashboardPage() {
             >
               {previewMode === 'demo' ? 'Выключить ДЕМО' : 'Включить ДЕМО'}
             </button>
-            {!isTwitchConnected && (
-              <button 
-                onClick={async () => {
-                  try {
-                    const { data: { session } } = await supabase.auth.getSession();
-                    
-                    const res = await fetch('/api/twitch/subscribe', { 
-                      method: 'POST',
-                      headers: {
-                        'Authorization': `Bearer ${session?.access_token || ''}`
-                      }
-                    });
-                    const data = await res.json();
-                    if (data.success || data.details?.online === 'already_exists') {
-                      localStorage.setItem('twitch_connected', 'true');
-                      setIsTwitchConnected(true);
-                      alert('Успешно подключено к Twitch! Теперь сессии будут запускаться автоматически при начале стрима.');
-                    } else {
-                      alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
-                    }
-                  } catch (e) {
-                    alert('Ошибка сети.');
-                  }
-                }}
-                className="px-3 py-1 text-xs rounded transition-colors bg-[#9146FF]/20 text-[#9146FF] hover:bg-[#9146FF]/40 font-bold border border-[#9146FF]/30 mr-4"
-              >
-                Подключить Twitch Автоматизацию
-              </button>
-            )}
             <button onClick={() => setCanvasBg('grid')} className={`px-3 py-1 text-xs rounded transition-colors ${canvasBg === 'grid' ? 'bg-[#9146FF] text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>Сетка</button>
             <button onClick={() => setCanvasBg('light')} className={`px-3 py-1 text-xs rounded transition-colors ${canvasBg === 'light' ? 'bg-[#9146FF] text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>Светлый</button>
             <button onClick={() => setCanvasBg('dark')} className={`px-3 py-1 text-xs rounded transition-colors ${canvasBg === 'dark' ? 'bg-[#9146FF] text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>Тёмный</button>

@@ -12,6 +12,9 @@ function OverlayContent({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [twitchUsername, setTwitchUsername] = useState<string>('');
+  const [twitchId, setTwitchId] = useState<string>('');
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   
   const setAllSettings = useSettingsStore(state => state.setAllSettings);
   const setPreviewMode = useSettingsStore(state => state.setPreviewMode);
@@ -21,7 +24,7 @@ function OverlayContent({ token }: { token: string }) {
   const showDebug = searchParams.get('debug') === 'true';
 
   const [realtimeStatus, setRealtimeStatus] = useState<string>('INIT');
-  const diag = useDiagnostics(twitchUsername || null);
+  const diag = useDiagnostics(twitchId || null);
 
   useEffect(() => {
     document.documentElement.classList.add('overlay-page');
@@ -77,10 +80,13 @@ function OverlayContent({ token }: { token: string }) {
         return;
       }
       
-      currentUserId = settingData.user_id;
-      if (!cancelled) {
+      if (settingData) {
         setTwitchUsername(settingData.twitch_username);
-        setAllSettings(mapSettings(settingData));
+        setTwitchId(settingData.twitch_id);
+        currentUserId = settingData.user_id;
+        const loadedSettings = mapSettings(settingData);
+        setAllSettings(loadedSettings);
+        setSettingsLoaded(true);
       }
 
       const { data: sessionId, error: rpcError } = await supabase.rpc('get_or_create_active_session', { p_overlay_token: token });
@@ -147,6 +153,15 @@ function OverlayContent({ token }: { token: string }) {
     <div className="w-screen h-screen overflow-hidden bg-transparent">
       <LivePreview sessionId={sessionId} onRealtimeStatusChange={setRealtimeStatus} />
       {showDebug && (
+        <div className="absolute top-4 left-4 z-[999] bg-black/80 text-white p-4 rounded-lg border border-yellow-500/50 shadow-2xl text-xs font-mono max-w-sm pointer-events-none backdrop-blur-sm">
+          <h3 className="text-yellow-400 font-bold mb-2 border-b border-yellow-500/30 pb-1">OVERLAY DEBUG</h3>
+          <div>Token: {token}</div>
+          <div>Settings Loaded: {settingsLoaded ? 'Yes' : 'No'}</div>
+          <div>Session ID: {sessionId || 'None'}</div>
+          {settingsError && <div className="text-red-400 mt-2">Error: {settingsError}</div>}
+        </div>
+      )}
+      {showDebug && (
         <DiagnosticPanel 
           twitchUsername={twitchUsername}
           sessionId={sessionId}
@@ -158,10 +173,19 @@ function OverlayContent({ token }: { token: string }) {
   );
 }
 
-export default function OverlayPage({ params }: { params: { token: string } }) {
+import { useParams } from 'next/navigation';
+
+export default function OverlayPage() {
+  const params = useParams<{ token: string }>();
+  const token = params?.token;
+
+  if (!token) {
+    return null; // Or a debug message if you prefer, but null matches requirements
+  }
+
   return (
     <Suspense fallback={null}>
-      <OverlayContent token={params.token} />
+      <OverlayContent token={token} />
     </Suspense>
   );
 }

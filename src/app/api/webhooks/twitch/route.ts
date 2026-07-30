@@ -38,6 +38,15 @@ export async function POST(req: Request) {
     const body = JSON.parse(rawBody);
 
     if (messageType === 'webhook_callback_verification') {
+      const twitchId = body.subscription?.condition?.broadcaster_user_id;
+      const subId = body.subscription?.id;
+      if (twitchId) {
+        await supabase.from('webhook_diagnostics').upsert({
+          twitch_id: twitchId,
+          subscription_status: 'verification_received',
+          subscription_id: subId
+        });
+      }
       return new NextResponse(body.challenge, {
         status: 200,
         headers: { 'Content-Type': 'text/plain' },
@@ -46,10 +55,10 @@ export async function POST(req: Request) {
 
     if (messageType === 'revocation') {
       // Update diag state
-      const event = body.event;
-      if (event?.broadcaster_user_id) {
+      const twitchId = body.subscription?.condition?.broadcaster_user_id;
+      if (twitchId) {
         await supabase.from('webhook_diagnostics').upsert({
-          twitch_id: event.broadcaster_user_id,
+          twitch_id: twitchId,
           subscription_status: 'revoked',
           last_webhook_error: 'Subscription revoked by Twitch'
         });
@@ -127,17 +136,19 @@ export async function POST(req: Request) {
         if (shouldCount) {
           // 3. Get Active Session
           const { data: sessionData, error: sessionErr } = await supabase
-            .rpc('get_or_create_active_session', { p_user_id: userId });
+            .rpc('get_or_create_active_session_server', { p_user_id: userId });
             
           if (sessionErr) throw sessionErr;
           
           const sessionId = sessionData;
 
           // 4. Increment
-          const { error: incError } = await supabase.rpc('increment_message_stat_batch', {
+          const { error: incError } = await supabase.rpc('increment_message_stat_server', {
+            p_user_id: userId,
             p_session_id: sessionId,
-            p_batch: [{ id: chatterId, username: chatterUsername, count: 1 }],
-            p_overlay_token: null
+            p_twitch_user_id: chatterId,
+            p_twitch_username: chatterUsername,
+            p_increment: 1
           });
 
           if (incError) throw incError;

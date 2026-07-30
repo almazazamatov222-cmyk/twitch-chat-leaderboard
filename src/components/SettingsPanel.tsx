@@ -22,11 +22,36 @@ function AccordionHeader({ id, label, icon: Icon, activeSection, onToggle }: any
   );
 }
 
-export default function SettingsPanel({ overlayToken }: { overlayToken: string }) {
+export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken: string, twitchId?: string | null }) {
   const { settings, updateSettings, previewMode, setPreviewMode } = useSettingsStore();
   const [copied, setCopied] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('main');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [twitchStatus, setTwitchStatus] = useState<any>(null);
+  const [twitchStatusLoading, setTwitchStatusLoading] = useState(false);
+
+  useEffect(() => {
+    if (!twitchId) return;
+    let isMounted = true;
+    
+    const checkStatus = async () => {
+      if (isMounted) setTwitchStatusLoading(true);
+      try {
+        const res = await fetch(`/api/twitch/subscription-status?twitchId=${twitchId}`);
+        const data = await res.json();
+        if (data.success && isMounted) {
+          setTwitchStatus(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch status', err);
+      } finally {
+        if (isMounted) setTwitchStatusLoading(false);
+      }
+    };
+
+    checkStatus();
+    return () => { isMounted = false; };
+  }, [twitchId]);
   
   // Debounce all settings to trigger save
   const debouncedSettings = useDebounce(settings, 600);
@@ -179,24 +204,44 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
               </div>
 
               <div className="pt-4 border-t border-gray-800">
-                <button
-                  onClick={async () => {
-                    await supabase.auth.signInWithOAuth({
-                      provider: 'twitch',
-                      options: {
-                        redirectTo: `${window.location.origin}/auth/callback`,
-                        scopes: 'user:read:chat user:bot channel:bot'
-                      }
-                    });
-                  }}
-                  className="w-full bg-[#9146FF] hover:bg-[#772ce8] text-white py-2 px-4 rounded font-medium transition-colors flex items-center justify-center gap-2"
-                >
-                  <RefreshCw size={16} />
-                  Переподключить Twitch-чат
-                </button>
-                <p className="text-xs text-gray-500 mt-2 text-center">
-                  Необходимо для выдачи прав чтения чата серверу (EventSub).
-                </p>
+                {twitchStatusLoading ? (
+                  <div className="text-sm text-gray-400">Проверяем подключение Twitch...</div>
+                ) : twitchStatus?.status === 'enabled' ? (
+                  <div className="flex flex-col gap-2">
+                    <div className="text-sm text-green-400 font-medium flex items-center gap-2">
+                      <Check size={16} /> Twitch-чат подключён
+                    </div>
+                  </div>
+                ) : twitchStatus?.status === 'webhook_callback_verification_pending' ? (
+                  <div className="text-sm text-yellow-400 font-medium">
+                    Проверяем подключение Twitch (ожидание вебхука)...
+                  </div>
+                ) : (
+                  <div>
+                    {twitchStatus?.error && (
+                      <div className="text-xs text-red-400 mb-2">Ошибка: {twitchStatus.error}</div>
+                    )}
+                    <button
+                      onClick={async () => {
+                        await supabase.auth.signInWithOAuth({
+                          provider: 'twitch',
+                          options: {
+                            redirectTo: `${window.location.origin}/auth/callback`,
+                            scopes: 'user:read:chat user:bot channel:bot',
+                            queryParams: { force_verify: 'true' }
+                          }
+                        });
+                      }}
+                      className="w-full bg-[#9146FF] hover:bg-[#772ce8] text-white py-2 px-4 rounded font-medium transition-colors flex items-center justify-center gap-2"
+                    >
+                      <RefreshCw size={16} />
+                      Подключить Twitch-чат
+                    </button>
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      Необходимо для выдачи прав чтения чата серверу (EventSub).
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2 pt-2 border-t border-gray-800">

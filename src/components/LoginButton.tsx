@@ -14,7 +14,10 @@ export default function LoginButton() {
         provider: 'twitch',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          scopes: 'user:read:chat user:bot channel:bot'
+          scopes: 'user:read:chat user:bot channel:bot',
+          queryParams: {
+            force_verify: 'true'
+          }
         }
       });
       if (error) throw error;
