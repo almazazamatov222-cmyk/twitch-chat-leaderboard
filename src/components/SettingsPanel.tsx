@@ -61,8 +61,8 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'webhook_diagnostics', filter: `twitch_id=eq.${twitchId}` },
-        (payload) => {
-          if (isMounted) {
+        (payload: any) => {
+          if (isMounted && payload.new) {
             setTwitchStatus({
               status: payload.new.subscription_status,
               error: payload.new.last_webhook_error
