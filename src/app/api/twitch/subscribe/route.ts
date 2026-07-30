@@ -61,27 +61,52 @@ export async function POST(req: Request) {
     const appToken = await getAppAccessToken();
 
     // 1. Get existing subscriptions
-    const subRes = await fetch(`https://api.twitch.tv/helix/eventsub/subscriptions?type=channel.chat.message&status=enabled`, {
-      headers: {
-        'Client-ID': CLIENT_ID,
-        'Authorization': `Bearer ${appToken}`,
-      }
-    });
+    let allSubs: any[] = [];
+    let cursor = '';
+    let pageCount = 0;
     
-    const subData = await subRes.json();
-    if (!subRes.ok) {
-      const err = `Failed to fetch subscriptions: ${subData.message}`;
-      await saveDiagError(twitchId, err);
-      return NextResponse.json({ success: false, error: err }, { status: subRes.status });
+    while (pageCount < 5) {
+      const url = `https://api.twitch.tv/helix/eventsub/subscriptions?type=channel.chat.message${cursor ? `&after=${cursor}` : ''}`;
+      const subRes = await fetch(url, {
+        headers: {
+          'Client-ID': CLIENT_ID,
+          'Authorization': `Bearer ${appToken}`,
+        }
+      });
+      
+      const subData = await subRes.json();
+      if (!subRes.ok) {
+        const err = `Failed to fetch subscriptions: ${subData.message}`;
+        await saveDiagError(twitchId, err);
+        return NextResponse.json({ success: false, error: err }, { status: subRes.status });
+      }
+
+      if (subData.data && Array.isArray(subData.data)) {
+        allSubs = allSubs.concat(subData.data);
+      }
+
+      if (subData.pagination && subData.pagination.cursor) {
+        cursor = subData.pagination.cursor;
+        pageCount++;
+      } else {
+        break;
+      }
     }
 
-    let existingSub = null;
-    if (subData.data && Array.isArray(subData.data)) {
-      existingSub = subData.data.find((sub: any) => 
-        sub.condition.broadcaster_user_id === twitchId &&
-        sub.transport.callback === WEBHOOK_CALLBACK
-      );
-    }
+    const matchingSubscriptions = allSubs.filter((sub: any) =>
+      sub.type === 'channel.chat.message' &&
+      sub.condition?.broadcaster_user_id === twitchId &&
+      sub.condition?.user_id === twitchId &&
+      sub.transport?.method === 'webhook' &&
+      sub.transport?.callback === WEBHOOK_CALLBACK
+    );
+
+    const existingSub =
+      matchingSubscriptions.find((sub: any) => sub.status === 'enabled') ??
+      matchingSubscriptions.find(
+        (sub: any) => sub.status === 'webhook_callback_verification_pending'
+      ) ??
+      null;
 
     let status = 'enabled';
     let subId = existingSub?.id;
@@ -113,6 +138,11 @@ export async function POST(req: Request) {
       const createData = await createRes.json();
 
       if (!createRes.ok) {
+        if (createRes.status === 409) {
+          // If conflict, another process might have created it recently, or we didn't fetch enough pages.
+          // In this case, just return success=true so the client can continue, and polling will catch it up later.
+          return NextResponse.json({ success: true, status: 'conflict_pending', id: null });
+        }
         const err = `Failed to create subscription: ${createData.message}`;
         await saveDiagError(twitchId, err);
         return NextResponse.json({ success: false, error: err }, { status: createRes.status });

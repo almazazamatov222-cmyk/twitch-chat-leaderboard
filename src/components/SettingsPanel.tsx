@@ -33,6 +33,7 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
   useEffect(() => {
     if (!twitchId) return;
     let isMounted = true;
+    let pollInterval: NodeJS.Timeout | null = null;
     
     const checkStatus = async () => {
       if (isMounted) setTwitchStatusLoading(true);
@@ -40,7 +41,11 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
         const res = await fetch(`/api/twitch/subscription-status?twitchId=${twitchId}`);
         const data = await res.json();
         if (data.success && isMounted) {
-          setTwitchStatus(data);
+          setTwitchStatus((prev: any) => ({
+            ...prev,
+            status: data.status,
+            error: data.error
+          }));
         }
       } catch (err) {
         console.error('Failed to fetch status', err);
@@ -50,7 +55,37 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
     };
 
     checkStatus();
-    return () => { isMounted = false; };
+
+    // Subscribe to DB changes
+    const channel = supabase.channel(`twitch_connection_${twitchId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'webhook_diagnostics', filter: `twitch_id=eq.${twitchId}` },
+        (payload) => {
+          if (isMounted) {
+            setTwitchStatus({
+              status: payload.new.subscription_status,
+              error: payload.new.last_webhook_error
+            });
+          }
+        }
+      ).subscribe();
+
+    // Polling logic
+    pollInterval = setInterval(() => {
+      setTwitchStatus((currentStatus: any) => {
+        if (!currentStatus || ['missing', 'unknown', 'verification_received', 'pending', 'webhook_callback_verification_pending'].includes(currentStatus.status)) {
+          checkStatus();
+        }
+        return currentStatus;
+      });
+    }, 2000);
+
+    return () => { 
+      isMounted = false; 
+      if (pollInterval) clearInterval(pollInterval);
+      supabase.removeChannel(channel);
+    };
   }, [twitchId]);
   
   // Debounce all settings to trigger save
@@ -204,16 +239,31 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
               </div>
 
               <div className="pt-4 border-t border-gray-800">
-                {twitchStatusLoading ? (
+                {twitchStatusLoading && !twitchStatus ? (
                   <div className="text-sm text-gray-400">Проверяем подключение Twitch...</div>
                 ) : twitchStatus?.status === 'enabled' ? (
                   <div className="flex flex-col gap-2">
                     <div className="text-sm text-green-400 font-medium flex items-center gap-2">
                       <Check size={16} /> Twitch-чат подключён
                     </div>
+                    <button
+                      onClick={async () => {
+                        await supabase.auth.signInWithOAuth({
+                          provider: 'twitch',
+                          options: {
+                            redirectTo: `${window.location.origin}/auth/callback`,
+                            scopes: 'user:read:chat user:bot channel:bot',
+                            queryParams: { force_verify: 'true' }
+                          }
+                        });
+                      }}
+                      className="text-xs text-gray-500 hover:text-white transition-colors self-start"
+                    >
+                      Переподключить
+                    </button>
                   </div>
-                ) : twitchStatus?.status === 'webhook_callback_verification_pending' ? (
-                  <div className="text-sm text-yellow-400 font-medium">
+                ) : (twitchStatus?.status === 'webhook_callback_verification_pending' || twitchStatus?.status === 'verification_received') ? (
+                  <div className="text-sm text-yellow-400 font-medium animate-pulse">
                     Проверяем подключение Twitch (ожидание вебхука)...
                   </div>
                 ) : (
@@ -232,7 +282,7 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
                           }
                         });
                       }}
-                      className="w-full bg-[#9146FF] hover:bg-[#772ce8] text-white py-2 px-4 rounded font-medium transition-colors flex items-center justify-center gap-2"
+                      className="w-full bg-[#9146FF] hover:bg-[#772ce8] text-white py-2 px-4 rounded font-medium transition-colors flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(145,70,255,0.4)] hover:shadow-[0_0_25px_rgba(145,70,255,0.6)]"
                     >
                       <RefreshCw size={16} />
                       Подключить Twitch-чат

@@ -109,6 +109,19 @@ export async function POST(req: Request) {
         const chatterId = event.chatter_user_id;
         const chatterUsername = event.chatter_user_name || event.chatter_user_login;
         const text = event.message.text;
+        const subId = body.subscription?.id;
+
+        // Update diag state
+        await supabase.from('webhook_diagnostics').upsert({
+          twitch_id: twitchId,
+          subscription_status: 'enabled',
+          subscription_id: subId,
+          last_webhook_received_at: new Date().toISOString(),
+          last_message_id: msgId,
+          last_chatter_username: chatterUsername,
+          last_webhook_error: null,
+          updated_at: new Date().toISOString()
+        });
 
         // 1. Deduplication
         const { error: dedupError } = await supabase

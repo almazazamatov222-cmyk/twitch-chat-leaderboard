@@ -4,6 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 const CLIENT_ID = process.env.NEXT_PUBLIC_TWITCH_CLIENT_ID || '';
 const CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || '';
 const WEBHOOK_CALLBACK = process.env.TWITCH_WEBHOOK_CALLBACK || 'https://twitch-chat-leaderboard.vercel.app/api/webhooks/twitch';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function GET(req: Request) {
   try {
@@ -37,25 +40,61 @@ export async function GET(req: Request) {
     const appToken = tokenData.access_token;
 
     // Get subscriptions
-    const subRes = await fetch(`https://api.twitch.tv/helix/eventsub/subscriptions?type=channel.chat.message`, {
-      headers: {
-        'Client-ID': CLIENT_ID,
-        'Authorization': `Bearer ${appToken}`,
-      }
-    });
+    let allSubs: any[] = [];
+    let cursor = '';
+    let pageCount = 0;
     
-    const subData = await subRes.json();
-    if (!subRes.ok) {
-      return NextResponse.json({ success: false, error: 'Failed to fetch subscriptions: ' + subData.message }, { status: 500 });
+    while (pageCount < 5) {
+      const url = `https://api.twitch.tv/helix/eventsub/subscriptions?type=channel.chat.message${cursor ? `&after=${cursor}` : ''}`;
+      const subRes = await fetch(url, {
+        headers: {
+          'Client-ID': CLIENT_ID,
+          'Authorization': `Bearer ${appToken}`,
+        }
+      });
+      
+      const subData = await subRes.json();
+      if (!subRes.ok) {
+        return NextResponse.json({ success: false, error: 'Failed to fetch subscriptions: ' + subData.message }, { status: 500 });
+      }
+
+      if (subData.data && Array.isArray(subData.data)) {
+        allSubs = allSubs.concat(subData.data);
+      }
+
+      if (subData.pagination && subData.pagination.cursor) {
+        cursor = subData.pagination.cursor;
+        pageCount++;
+      } else {
+        break;
+      }
     }
 
-    let existingSub = null;
-    if (subData.data && Array.isArray(subData.data)) {
-      existingSub = subData.data.find((sub: any) => 
-        sub.condition.broadcaster_user_id === twitchId &&
-        sub.transport.callback === WEBHOOK_CALLBACK
-      );
-    }
+    const matchingSubscriptions = allSubs.filter((sub: any) =>
+      sub.type === 'channel.chat.message' &&
+      sub.condition?.broadcaster_user_id === twitchId &&
+      sub.condition?.user_id === twitchId &&
+      sub.transport?.method === 'webhook' &&
+      sub.transport?.callback === WEBHOOK_CALLBACK
+    );
+
+    const existingSub =
+      matchingSubscriptions.find((sub: any) => sub.status === 'enabled') ??
+      matchingSubscriptions.find((sub: any) => sub.status === 'webhook_callback_verification_pending') ??
+      matchingSubscriptions[0] ??
+      null;
+
+    const actualStatus = existingSub ? existingSub.status : 'missing';
+    const subscriptionId = existingSub ? existingSub.id : null;
+    const errorOrNull = existingSub?.status === 'webhook_callback_verification_failed' ? 'Verification failed' : null;
+
+    await supabase.from('webhook_diagnostics').upsert({
+      twitch_id: twitchId,
+      subscription_status: actualStatus,
+      subscription_id: subscriptionId,
+      last_webhook_error: errorOrNull,
+      updated_at: new Date().toISOString()
+    });
 
     if (!existingSub) {
       return NextResponse.json({ success: true, status: 'missing', id: null });
@@ -63,9 +102,9 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ 
       success: true, 
-      status: existingSub.status, 
-      id: existingSub.id,
-      error: existingSub.status === 'webhook_callback_verification_failed' ? 'Verification failed' : null
+      status: actualStatus, 
+      id: subscriptionId,
+      error: errorOrNull
     });
 
   } catch (err: any) {
