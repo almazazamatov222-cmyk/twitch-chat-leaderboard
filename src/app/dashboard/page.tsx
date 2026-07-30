@@ -155,13 +155,13 @@ export default function DashboardPage() {
           }}
         >
           {/* Container for OBS simulation */}
-          <div className="w-full max-w-[500px] min-h-[800px] h-max border border-gray-600/50 shadow-2xl relative rounded shadow-black/50 overflow-hidden"
+          <div className="w-full max-w-[500px] min-h-[800px] h-max relative overflow-visible"
                style={{ 
                  containerType: 'size',
                }}
           >
              <div className="w-full h-full min-h-[800px] flex items-start justify-center">
-               <div className="w-[500px] origin-top relative" style={{
+               <div className="w-[500px] origin-top relative outline-dashed outline-1 outline-gray-500/30" style={{
                  transform: 'scale(min(100cqi / 500, 1))'
                }}>
                  <LivePreview />

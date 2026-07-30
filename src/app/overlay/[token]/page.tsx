@@ -1,32 +1,35 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useSettingsStore, defaultSettings, OverlaySettings } from '@/store/useSettingsStore';
 import LivePreview from '@/components/LivePreview';
-
 import { useTwitchChat } from '@/hooks/useTwitchChat';
+import { useSearchParams } from 'next/navigation';
 
-export default function OverlayPage({ params }: { params: { token: string } }) {
+function OverlayContent({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [twitchUsername, setTwitchUsername] = useState<string>('');
   
   const setAllSettings = useSettingsStore(state => state.setAllSettings);
   const setPreviewMode = useSettingsStore(state => state.setPreviewMode);
+  
+  const searchParams = useSearchParams();
+  const isDemo = searchParams.get('demo') === 'true';
 
-  useTwitchChat(twitchUsername, sessionId, params.token);
+  useTwitchChat(twitchUsername, sessionId, token);
 
   useEffect(() => {
-    // Overlay is always in real mode
-    setPreviewMode('real');
+    // Set to demo if requested via URL, else real
+    setPreviewMode(isDemo ? 'demo' : 'real');
 
     const init = async () => {
       // 1. Fetch settings by token
       const { data: settingData } = await supabase
         .from('settings')
         .select('*')
-        .eq('overlay_token', params.token)
+        .eq('overlay_token', token)
         .single();
         
       if (!settingData) {
@@ -65,7 +68,7 @@ export default function OverlayPage({ params }: { params: { token: string } }) {
           event: 'UPDATE', 
           schema: 'public', 
           table: 'settings',
-          filter: `overlay_token=eq.${params.token}`
+          filter: `overlay_token=eq.${token}`
         }, (payload) => {
           setAllSettings(mapSettings(payload.new));
         })
@@ -104,16 +107,24 @@ export default function OverlayPage({ params }: { params: { token: string } }) {
     };
     
     init();
-  }, [params.token, setAllSettings, setPreviewMode]);
+  }, [token, setAllSettings, setPreviewMode, isDemo]);
 
-  if (loading) return null; // OBS doesn't need a loading spinner
+  if (loading) return null;
   
-  // If no session, show nothing to avoid cluttering OBS
-  if (!sessionId) return null;
+  // If no session AND not in demo mode, show nothing
+  if (!sessionId && !isDemo) return null;
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-transparent">
       <LivePreview sessionId={sessionId} />
     </div>
+  );
+}
+
+export default function OverlayPage({ params }: { params: { token: string } }) {
+  return (
+    <Suspense fallback={null}>
+      <OverlayContent token={params.token} />
+    </Suspense>
   );
 }
