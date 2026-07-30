@@ -22,7 +22,7 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
   useEffect(() => {
     if (previewMode === 'demo' || !sessionId) {
       // Generate some fake users
-      const users = Array.from({ length: 25 }).map((_, i) => ({
+      const users = Array.from({ length: 50 }).map((_, i) => ({
         id: `demo-${i}`,
         username: `StreamUser_${Math.floor(Math.random() * 1000)}`,
         count: Math.floor(Math.random() * 500) + 10
@@ -135,7 +135,7 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
         )}
 
       <div 
-        className="flex-1 overflow-hidden flex flex-col relative" 
+        className="flex flex-col relative w-full" 
         style={{ gap: `${settings.rowGap}px` }}
       >
         <AnimatePresence mode="popLayout">

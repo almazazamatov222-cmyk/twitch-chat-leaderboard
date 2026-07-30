@@ -166,6 +166,9 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
                   <option value={10}>Топ 10</option>
                   <option value={15}>Топ 15</option>
                   <option value={20}>Топ 20</option>
+                  <option value={30}>Топ 30</option>
+                  <option value={40}>Топ 40</option>
+                  <option value={50}>Топ 50</option>
                 </select>
               </div>
 
@@ -353,109 +356,99 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
 // Extract complex sub-sections to components for readability
 
 function TextSection({ activeSection, settings, updateSettings }: any) {
-  const [target, setTarget] = useState<'title' | 'position' | 'username' | 'counter'>('title');
-
-  // Helper to map generic keys to specific element keys
-  const get = (key: string) => settings[`${target}${key}`];
-  const set = (key: string, val: any) => updateSettings({ [`${target}${key}`]: val });
-
   return (
     <div className="p-4 space-y-4 bg-gray-950 border-b border-gray-800">
-      {/* Target Selector */}
-      <div className="flex bg-gray-900 p-1 rounded-lg">
-          {[
-            { id: 'title', label: 'Заголовок' },
-            { id: 'position', label: 'Место' },
-            { id: 'username', label: 'Ник' },
-            { id: 'counter', label: 'Счётчик' }
-          ].map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTarget(t.id as any)}
-              className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
-                target === t.id 
-                  ? 'bg-gray-700 text-white shadow-sm' 
-                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Unified Controls */}
-        <div className="space-y-4 animate-in fade-in duration-200">
-          <div className="space-y-1">
-            <label className="text-xs text-gray-400">Шрифт</label>
-            <select 
-              value={get('Font')}
-              onChange={(e) => set('Font', e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm focus:border-[#9146FF] outline-none"
-              style={{ fontFamily: get('Font') }}
-            >
-              {FONT_CATEGORIES.map(cat => (
-                <optgroup key={cat.name} label={cat.name}>
-                  {cat.fonts.map(font => (
-                    <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
-                  ))}
-                </optgroup>
+      <div className="space-y-1">
+        <label className="text-xs text-gray-400">Шрифт (для всего текста)</label>
+        <select 
+          value={settings.titleFont}
+          onChange={(e) => updateSettings({ 
+            titleFont: e.target.value, 
+            positionFont: e.target.value, 
+            usernameFont: e.target.value, 
+            counterFont: e.target.value 
+          })}
+          className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm focus:border-[#9146FF] outline-none"
+          style={{ fontFamily: settings.titleFont }}
+        >
+          {FONT_CATEGORIES.map(cat => (
+            <optgroup key={cat.name} label={cat.name}>
+              {cat.fonts.map(font => (
+                <option key={font} value={font} style={{ fontFamily: font }}>{font}</option>
               ))}
-            </select>
-          </div>
+            </optgroup>
+          ))}
+        </select>
+      </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400">Размер шрифта</label>
-              <input type="text" value={get('Size')} onChange={e => set('Size', e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm" placeholder="16px" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400">Жирность (Weight)</label>
-              <select value={get('Weight')} onChange={e => set('Weight', e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm">
-                <option value="normal">Normal</option>
-                <option value="bold">Bold</option>
-                <option value="500">500 (Medium)</option>
-                <option value="800">800 (Extra Bold)</option>
-              </select>
-            </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1">
+          <label className="text-xs text-gray-400">Размер заголовка</label>
+          <input type="text" value={settings.titleSize} onChange={e => updateSettings({ titleSize: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm" placeholder="24px" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-gray-400">Цвет заголовка</label>
+          <div className="flex gap-2">
+            <input type="color" value={settings.titleColor.slice(0, 7)} onChange={e => updateSettings({ titleColor: e.target.value })} className="w-8 h-8 rounded border-0 p-0 cursor-pointer" />
+            <input type="text" value={settings.titleColor} onChange={e => updateSettings({ titleColor: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 text-sm" />
           </div>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400">Цвет текста</label>
-              <div className="flex gap-2">
-                <input type="color" value={get('Color').slice(0, 7)} onChange={e => set('Color', e.target.value)} className="w-8 h-8 rounded border-0 p-0 cursor-pointer" />
-                <input type="text" value={get('Color')} onChange={e => set('Color', e.target.value)} className="w-full bg-gray-900 border border-gray-700 rounded px-2 text-sm" />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400">Прозрачность</label>
-              <input type="range" min="0" max="1" step="0.05" value={get('Opacity')} onChange={e => set('Opacity', Number(e.target.value))} className="w-full accent-[#9146FF] h-8" />
-            </div>
+      <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-800">
+        <div className="space-y-1">
+          <label className="text-xs text-gray-400">Размер текста (Строки)</label>
+          <input type="text" value={settings.usernameSize} onChange={e => updateSettings({ 
+            usernameSize: e.target.value,
+            positionSize: e.target.value,
+            counterSize: e.target.value
+          })} className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm" placeholder="16px" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-gray-400">Цвет текста (Строки)</label>
+          <div className="flex gap-2">
+            <input type="color" value={settings.usernameColor.slice(0, 7)} onChange={e => updateSettings({ 
+              usernameColor: e.target.value,
+              positionColor: e.target.value,
+              counterColor: e.target.value
+            })} className="w-8 h-8 rounded border-0 p-0 cursor-pointer" />
+            <input type="text" value={settings.usernameColor} onChange={e => updateSettings({ 
+              usernameColor: e.target.value,
+              positionColor: e.target.value,
+              counterColor: e.target.value
+            })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 text-sm" />
           </div>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-800">
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400">Цвет обводки</label>
-              <input type="color" value={get('StrokeColor').slice(0,7)} onChange={e => set('StrokeColor', e.target.value)} className="w-full h-8 rounded border-0 p-0 cursor-pointer" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400">Толщина обводки</label>
-              <input type="text" value={get('StrokeWidth')} onChange={e => set('StrokeWidth', e.target.value)} placeholder="0px" className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-800">
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400">Цвет тени</label>
-              <input type="color" value={get('ShadowColor').slice(0,7)} onChange={e => set('ShadowColor', e.target.value)} className="w-full h-8 rounded border-0 p-0 cursor-pointer" />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-gray-400">Отступ тени (X Y Blur)</label>
-              <input type="text" value={settings[`${target}ShadowOpacity`] || '2px 2px 0px'} onChange={e => updateSettings({[`${target}ShadowOpacity`]: e.target.value})} placeholder="2px 2px 0px" className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm" />
-              <p className="text-[10px] text-gray-500">Пример: 2px 2px 4px</p>
-            </div>
-          </div>
-
+      <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-800">
+        <div className="space-y-1">
+          <label className="text-xs text-gray-400">Жирность (Weight)</label>
+          <select 
+            value={settings.titleWeight} 
+            onChange={e => updateSettings({ 
+              titleWeight: e.target.value,
+              positionWeight: e.target.value,
+              usernameWeight: e.target.value,
+              counterWeight: e.target.value
+            })} 
+            className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm"
+          >
+            <option value="normal">Normal</option>
+            <option value="bold">Bold</option>
+            <option value="500">500 (Medium)</option>
+            <option value="800">800 (Extra Bold)</option>
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-gray-400">Тень (Цвет)</label>
+          <input type="color" value={settings.titleShadowColor.slice(0,7)} onChange={e => updateSettings({ 
+            titleShadowColor: e.target.value,
+            positionShadowColor: e.target.value,
+            usernameShadowColor: e.target.value,
+            counterShadowColor: e.target.value
+          })} className="w-full h-8 rounded border-0 p-0 cursor-pointer" />
+        </div>
       </div>
     </div>
   );
