@@ -105,6 +105,7 @@ export type PreviewMode = 'demo' | 'real';
 interface SettingsState {
   settings: OverlaySettings;
   previewMode: PreviewMode;
+  isSettingsHydrated: boolean;
   updateSettings: (newSettings: Partial<OverlaySettings>) => void;
   setAllSettings: (settings: OverlaySettings) => void;
   setPreviewMode: (mode: PreviewMode) => void;
@@ -140,9 +141,10 @@ export const defaultSettings: OverlaySettings = {
 
 export const useSettingsStore = create<SettingsState>((set) => ({
   settings: defaultSettings,
-  previewMode: 'demo',
+  previewMode: 'real',
+  isSettingsHydrated: false,
   updateSettings: (newSettings) => 
     set((state) => ({ settings: { ...state.settings, ...newSettings } })),
-  setAllSettings: (settings) => set({ settings }),
+  setAllSettings: (settings) => set({ settings, isSettingsHydrated: true }),
   setPreviewMode: (mode) => set({ previewMode: mode }),
 }));

@@ -14,32 +14,11 @@ export function useSession() {
   const [activeSession, setActiveSession] = useState<StreamSession | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchActiveSession();
-
-    // Subscribe to session changes
-    const channelId = `session_changes_${crypto.randomUUID()}`;
-    const sub = supabase.channel(channelId)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'sessions'
-      }, () => {
-        fetchActiveSession();
-      })
-      .subscribe();
-
-    return () => {
-      sub.unsubscribe();
-    };
-  }, []);
-
   const fetchActiveSession = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // This will ensure an active session exists (whether offline or live)
       const { data: sessionId, error: rpcError } = await supabase.rpc('get_or_create_active_session');
       
       if (rpcError) {
@@ -64,6 +43,53 @@ export function useSession() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    let sub: ReturnType<typeof supabase.channel> | null = null;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let cancelled = false;
+    let isPolling = false;
+
+    const startPolling = () => {
+      if (isPolling) return;
+      isPolling = true;
+      pollInterval = setInterval(fetchActiveSession, 3000);
+    };
+
+    const stopPolling = () => {
+      isPolling = false;
+      if (pollInterval) clearInterval(pollInterval);
+    };
+
+    fetchActiveSession();
+
+    const channelId = `session_changes_${crypto.randomUUID()}`;
+    sub = supabase.channel(channelId)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'sessions'
+      }, () => {
+        fetchActiveSession();
+      })
+      .subscribe((status, err) => {
+        if (cancelled) return;
+        if (status === 'SUBSCRIBED') {
+          stopPolling();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          if (err) console.error('Realtime error in sessions:', err);
+          startPolling();
+        }
+      });
+
+    return () => {
+      cancelled = true;
+      stopPolling();
+      if (sub) {
+        supabase.removeChannel(sub);
+      }
+    };
+  }, []);
 
   const startNewSession = async () => {
     try {

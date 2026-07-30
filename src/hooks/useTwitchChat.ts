@@ -10,7 +10,7 @@ interface MessageBatch {
 export function useTwitchChat(twitchUsername: string, sessionId: string | null, overlayToken?: string) {
   const [isMaster, setIsMaster] = useState(false);
   const chatClientRef = useRef<ChatClient | null>(null);
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   
   const settings = useSettingsStore(state => state.settings);
   const settingsRef = useRef(settings);
@@ -38,16 +38,16 @@ export function useTwitchChat(twitchUsername: string, sessionId: string | null, 
         const state = channel.presenceState();
         
         // Find the oldest tab
-        let oldestTab: any = null;
-        for (const [key, presences] of Object.entries(state)) {
-          const presence = (presences as any)[0];
+        let oldestTab: { tabId: string, joinedAt: number } | null = null;
+        for (const presences of Object.values(state)) {
+          const presence = presences[0] as unknown as { tabId: string, joinedAt: number };
           if (!oldestTab || presence.joinedAt < oldestTab.joinedAt) {
             oldestTab = presence;
           }
         }
 
         // If I am the oldest tab, I am the Master
-        const masterStatus = oldestTab && oldestTab.tabId === tabId;
+        const masterStatus = !!oldestTab && oldestTab.tabId === tabId;
         setIsMaster(masterStatus);
       })
       .subscribe(async (status) => {
@@ -74,7 +74,6 @@ export function useTwitchChat(twitchUsername: string, sessionId: string | null, 
     }
 
     let isMounted = true;
-    let flushInterval: any;
 
     const connectChat = async () => {
       const client = new ChatClient();
@@ -107,36 +106,51 @@ export function useTwitchChat(twitchUsername: string, sessionId: string | null, 
 
     const flushBatches = async () => {
       const currentBatch = { ...batchRef.current };
+      if (Object.keys(currentBatch).length === 0) return;
+      
       batchRef.current = {}; // Reset immediately
 
-      for (const [userId, data] of Object.entries(currentBatch)) {
-        if (data.count > 0) {
-          try {
-            await supabase.rpc('increment_message_stat', {
-              p_session_id: sessionId,
-              p_twitch_user_id: userId,
-              p_twitch_username: data.username,
-              p_increment: data.count,
-              p_overlay_token: overlayToken || null
-            });
-            
-            // Highlight broadcast if enabled
-            if (settingsRef.current.highlightNew) {
-               supabase.channel(`chat_sync_${twitchUsername}`).send({
-                 type: 'broadcast',
-                 event: 'highlight',
-                 payload: { userId }
-               });
-            }
-          } catch (err) {
-            console.error('Failed to flush message count', err);
+      const batchArray = Object.entries(currentBatch).map(([userId, data]) => ({
+        id: userId,
+        username: data.username,
+        count: data.count
+      })).filter(x => x.count > 0);
+      
+      if (batchArray.length === 0) return;
+
+      try {
+        const { error } = await supabase.rpc('increment_message_stat_batch', {
+          p_session_id: sessionId,
+          p_batch: batchArray,
+          p_overlay_token: overlayToken || null
+        });
+        
+        if (error) throw error;
+        
+        // Highlight broadcast if enabled
+        if (settingsRef.current.highlightNew) {
+           for (const item of batchArray) {
+             supabase.channel(`chat_sync_${twitchUsername}`).send({
+               type: 'broadcast',
+               event: 'highlight',
+               payload: { userId: item.id }
+             });
+           }
+        }
+      } catch (err) {
+        console.error('Failed to flush message count. Restoring batch...', err);
+        // Restore missed messages back into batchRef to prevent data loss
+        for (const item of batchArray) {
+          if (!batchRef.current[item.id]) {
+            batchRef.current[item.id] = { username: item.username, count: 0 };
           }
+          batchRef.current[item.id].count += item.count;
         }
       }
     };
 
     connectChat();
-    flushInterval = setInterval(flushBatches, 2000);
+    const flushInterval = setInterval(flushBatches, 2000);
 
     return () => {
       isMounted = false;

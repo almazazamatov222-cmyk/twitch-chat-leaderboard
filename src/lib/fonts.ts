@@ -35,15 +35,6 @@ export const getAllFonts = () => {
 
 export const getGoogleFontsUrl = () => {
   const fonts = getAllFonts();
-  // Formats: Family+Name:wght@400;700
-  const families = fonts.map(f => {
-    // Some fonts like Press Start 2P don't have multiple weights, but standardizing:
-    if (f === 'Press Start 2P') return 'Press+Start+2P&display=swap';
-    if (f === 'Pixelify Sans') return 'Pixelify+Sans:wght@400;700&display=swap';
-    const formatted = f.replace(/ /g, '+');
-    return `${formatted}:wght@400;500;700;900&display=swap`;
-  });
-  
   // Actually it's better to group them all into one API call if possible, or use a few
   // Google Fonts API v2 allows multiple family params
   const familyParams = fonts.map(f => {

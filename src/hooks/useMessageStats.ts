@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { useSettingsStore } from '@/store/useSettingsStore';
-import { staticDemoUsers } from '@/lib/demoData';
 
 export interface UserMessageCount {
   id: string; // Twitch User ID
@@ -10,36 +9,36 @@ export interface UserMessageCount {
 }
 
 export function useMessageStats(sessionId: string | null) {
-  const { settings, previewMode } = useSettingsStore();
+  const { settings } = useSettingsStore();
   const [users, setUsers] = useState<Record<string, UserMessageCount>>({});
+  const [prevSessionId, setPrevSessionId] = useState(sessionId);
+  
+  if (sessionId !== prevSessionId) {
+    setPrevSessionId(sessionId);
+    setUsers({});
+  }
+
+  const isPolling = useRef(false);
 
   useEffect(() => {
-    if (previewMode === 'demo') {
-      const demoMap: Record<string, UserMessageCount> = {};
-      staticDemoUsers.forEach(u => {
-        demoMap[u.id] = { id: u.id, username: u.username, count: u.count };
-      });
-      setUsers(demoMap);
-      return;
-    }
-
-
+    let subscription: ReturnType<typeof supabase.channel> | null = null;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let cancelled = false;
 
     if (!sessionId) {
-      setUsers({});
       return;
     }
 
-    // 1. Fetch initial data
     const fetchInitial = async () => {
-      const { data } = await supabase
+      if (cancelled) return;
+      const { data, error } = await supabase
         .from('message_stats')
         .select('twitch_user_id, twitch_username, messages_count')
         .eq('session_id', sessionId)
         .order('messages_count', { ascending: false })
         .limit(100);
 
-      if (data) {
+      if (!error && data && !cancelled) {
         const map: Record<string, UserMessageCount> = {};
         data.forEach(row => {
           map[row.twitch_user_id] = {
@@ -52,18 +51,28 @@ export function useMessageStats(sessionId: string | null) {
       }
     };
 
+    const startPolling = () => {
+      if (isPolling.current) return;
+      isPolling.current = true;
+      pollInterval = setInterval(fetchInitial, 3000);
+    };
+
+    const stopPolling = () => {
+      isPolling.current = false;
+      if (pollInterval) clearInterval(pollInterval);
+    };
+
     fetchInitial();
 
-    // 2. Subscribe to realtime updates
-    const subscription = supabase
+    subscription = supabase
       .channel(`stats_${sessionId}_${crypto.randomUUID()}`)
       .on('postgres_changes', {
-        event: '*', // INSERT or UPDATE
+        event: '*', 
         schema: 'public',
         table: 'message_stats',
         filter: `session_id=eq.${sessionId}`
       }, (payload) => {
-        const newRow = payload.new as any;
+        const newRow = payload.new as { twitch_user_id: string, twitch_username: string, messages_count: number };
         if (!newRow.twitch_user_id) return;
         
         setUsers(prev => ({
@@ -75,14 +84,24 @@ export function useMessageStats(sessionId: string | null) {
           }
         }));
       })
-      .subscribe();
+      .subscribe((status, err) => {
+        if (cancelled) return;
+        if (status === 'SUBSCRIBED') {
+          stopPolling();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          if (err) console.error('Realtime error in message_stats:', err);
+          startPolling();
+        }
+      });
 
     return () => {
-      subscription.unsubscribe();
+      cancelled = true;
+      stopPolling();
+      if (subscription) {
+        supabase.removeChannel(subscription);
+      }
     };
-  }, [sessionId, previewMode]);
-
-
+  }, [sessionId]);
 
   const sortedUsers = Object.values(users)
     .sort((a, b) => b.count - a.count)

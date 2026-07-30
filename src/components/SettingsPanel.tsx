@@ -7,6 +7,21 @@ import { FONT_CATEGORIES } from '@/lib/fonts';
 import { supabase } from '@/lib/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
 
+function AccordionHeader({ id, label, icon: Icon, activeSection, onToggle }: any) {
+  return (
+    <button 
+      onClick={() => onToggle(id)}
+      className="w-full flex items-center justify-between p-4 bg-gray-900 border-b border-gray-800 hover:bg-gray-800 transition-colors"
+    >
+      <div className="flex items-center gap-3">
+        <Icon size={18} className={activeSection === id ? "text-[#9146FF]" : "text-gray-400"} />
+        <span className={`font-medium ${activeSection === id ? "text-white" : "text-gray-300"}`}>{label}</span>
+      </div>
+      {activeSection === id ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+    </button>
+  );
+}
+
 export default function SettingsPanel({ overlayToken }: { overlayToken: string }) {
   const { settings, updateSettings, previewMode, setPreviewMode } = useSettingsStore();
   const [copied, setCopied] = useState(false);
@@ -69,25 +84,15 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
 
   // Auto-save effect
   useEffect(() => {
-    // Skip initial mount save
-    if (Object.keys(debouncedSettings).length > 0 && overlayToken) {
+    const isHydrated = useSettingsStore.getState().isSettingsHydrated;
+    if (isHydrated && Object.keys(debouncedSettings).length > 0 && overlayToken) {
        handleSave(debouncedSettings);
     }
   }, [debouncedSettings, handleSave, overlayToken]);
 
-
-  const AccordionHeader = ({ id, label, icon: Icon }: any) => (
-    <button 
-      onClick={() => setActiveSection(activeSection === id ? '' : id)}
-      className="w-full flex items-center justify-between p-4 bg-gray-900 border-b border-gray-800 hover:bg-gray-800 transition-colors"
-    >
-      <div className="flex items-center gap-3">
-        <Icon size={18} className={activeSection === id ? "text-[#9146FF]" : "text-gray-400"} />
-        <span className={`font-medium ${activeSection === id ? "text-white" : "text-gray-300"}`}>{label}</span>
-      </div>
-      {activeSection === id ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
-    </button>
-  );
+  const toggleSection = (id: string) => {
+    setActiveSection(activeSection === id ? '' : id);
+  };
 
   const parseRgba = (rgbaStr: string) => {
     if (!rgbaStr) return { hex: '#000000', opacity: 1 };
@@ -151,7 +156,7 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
         
         {/* Основное */}
         <div>
-          <AccordionHeader id="main" label="Основное" icon={Monitor} />
+          <AccordionHeader id="main" label="Основное" icon={Monitor} activeSection={activeSection} onToggle={toggleSection} />
           {activeSection === 'main' && (
             <div className="p-4 space-y-5 bg-gray-950 border-b border-gray-800">
               <div className="space-y-2">
@@ -189,15 +194,15 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
 
         {/* Текст */}
         <div>
-          <AccordionHeader id="text" label="Текст и Шрифты" icon={Type} />
+          <AccordionHeader id="text" label="Текст и Шрифты" icon={Type} activeSection={activeSection} onToggle={toggleSection} />
           {activeSection === 'text' && (
-            <TextSection activeSection={activeSection} settings={settings} updateSettings={updateSettings} />
+            <TextSection settings={settings} updateSettings={updateSettings} />
           )}
         </div>
 
         {/* Строки */}
         <div>
-          <AccordionHeader id="rows" label="Дизайн фона" icon={Palette} />
+          <AccordionHeader id="rows" label="Дизайн фона" icon={Palette} activeSection={activeSection} onToggle={toggleSection} />
           {activeSection === 'rows' && (
             <div className="p-4 space-y-5 bg-gray-950 border-b border-gray-800">
                <div className="space-y-4">
@@ -313,7 +318,7 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
 
         {/* Анимация */}
         <div>
-          <AccordionHeader id="animation" label="Анимация" icon={Play} />
+          <AccordionHeader id="animation" label="Анимация" icon={Play} activeSection={activeSection} onToggle={toggleSection} />
           {activeSection === 'animation' && (
             <div className="p-4 space-y-5 bg-gray-950 border-b border-gray-800">
                <div className="space-y-2">
@@ -363,7 +368,7 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
 
 // Extract complex sub-sections to components for readability
 
-function TextSection({ activeSection, settings, updateSettings }: any) {
+function TextSection({ settings, updateSettings }: { settings: any, updateSettings: (val: any) => void }) {
   return (
     <div className="p-4 space-y-4 bg-gray-950 border-b border-gray-800">
       <div className="space-y-1">

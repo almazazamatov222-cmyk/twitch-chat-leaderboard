@@ -21,11 +21,48 @@ function OverlayContent({ token }: { token: string }) {
   useTwitchChat(twitchUsername, sessionId, token);
 
   useEffect(() => {
-    // Set to demo if requested via URL, else real
+    document.documentElement.classList.add('overlay-page');
+    document.body.classList.add('overlay-page');
+    return () => {
+      document.documentElement.classList.remove('overlay-page');
+      document.body.classList.remove('overlay-page');
+    };
+  }, []);
+
+  useEffect(() => {
     setPreviewMode(isDemo ? 'demo' : 'real');
 
-    const init = async () => {
-      // 1. Fetch settings by token
+    let settingsSub: any;
+    let sessionSub: any;
+    let cancelled = false;
+    let pollInterval: any;
+    let isPolling = false;
+    let currentUserId: string | null = null;
+
+    const mapSettings = (data: any) => {
+      const loadedSettings = { ...defaultSettings };
+      const keys = Object.keys(defaultSettings) as Array<keyof OverlaySettings>;
+      for (const key of keys) {
+        const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+        if (data[snakeKey] !== undefined && data[snakeKey] !== null) {
+          (loadedSettings as any)[key] = data[snakeKey];
+        }
+      }
+      let rawRowColor = data.row_background || defaultSettings.rowColor;
+      if (rawRowColor.startsWith('rgba')) {
+        const match = rawRowColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (match) {
+          rawRowColor = '#' + [match[1], match[2], match[3]].map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+        }
+      }
+      loadedSettings.rowColor = rawRowColor;
+      loadedSettings.rowGap = data.row_gap ?? defaultSettings.rowGap;
+      return loadedSettings;
+    };
+
+    const fetchAll = async () => {
+      if (cancelled) return;
+      
       const { data: settingData } = await supabase
         .from('settings')
         .select('*')
@@ -33,81 +70,72 @@ function OverlayContent({ token }: { token: string }) {
         .single();
         
       if (!settingData) {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
         return;
       }
       
-      setTwitchUsername(settingData.twitch_username);
+      currentUserId = settingData.user_id;
+      if (!cancelled) {
+        setTwitchUsername(settingData.twitch_username);
+        setAllSettings(mapSettings(settingData));
+      }
+
+      const { data: sessionId, error: rpcError } = await supabase.rpc('get_or_create_active_session', { p_overlay_token: token });
       
-      const mapSettings = (data: any) => {
-        const loadedSettings = { ...defaultSettings };
-        const keys = Object.keys(defaultSettings) as Array<keyof OverlaySettings>;
-        for (const key of keys) {
-          const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-          if (data[snakeKey] !== undefined && data[snakeKey] !== null) {
-            (loadedSettings as any)[key] = data[snakeKey];
-          }
-        }
-        let rawRowColor = data.row_background || defaultSettings.rowColor;
-        if (rawRowColor.startsWith('rgba')) {
-          const match = rawRowColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-          if (match) {
-            rawRowColor = '#' + [match[1], match[2], match[3]].map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
-          }
-        }
-        loadedSettings.rowColor = rawRowColor;
-        loadedSettings.rowGap = data.row_gap ?? defaultSettings.rowGap;
-        return loadedSettings;
-      };
+      if (rpcError) {
+        console.error('RPC Error in overlay:', rpcError);
+        if (!cancelled) setSessionId(null);
+      } else {
+        if (!cancelled) setSessionId(sessionId || null);
+      }
+      
+      if (!cancelled) setLoading(false);
+    };
 
-      setAllSettings(mapSettings(settingData));
+    const startPolling = () => {
+      if (isPolling) return;
+      isPolling = true;
+      pollInterval = setInterval(fetchAll, 3000);
+    };
 
-      // 2. Subscribe to settings changes
-      const settingsSub = supabase.channel(`settings_changes_${crypto.randomUUID()}`)
-        .on('postgres_changes', { 
-          event: 'UPDATE', 
-          schema: 'public', 
-          table: 'settings',
-          filter: `overlay_token=eq.${token}`
-        }, (payload) => {
+    const stopPolling = () => {
+      isPolling = false;
+      if (pollInterval) clearInterval(pollInterval);
+    };
+
+    const init = async () => {
+      await fetchAll();
+      if (cancelled || !currentUserId) return;
+
+      settingsSub = supabase.channel(`settings_changes_${crypto.randomUUID()}`)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'settings', filter: `overlay_token=eq.${token}` }, (payload) => {
           setAllSettings(mapSettings(payload.new));
         })
-        .subscribe();
+        .subscribe((status, err) => {
+          if (cancelled) return;
+          if (status === 'SUBSCRIBED') stopPolling();
+          else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') startPolling();
+        });
 
-      // 3. Fetch active session
-      const fetchSession = async () => {
-        const { data: sessionId, error: rpcError } = await supabase.rpc('get_or_create_active_session', { p_overlay_token: token });
-        
-        if (rpcError) {
-          console.error('RPC Error in overlay:', rpcError);
-          setSessionId(null);
-          return;
-        }
-
-        if (sessionId) {
-          setSessionId(sessionId);
-        } else {
-          setSessionId(null);
-        }
-      };
-      
-      await fetchSession();
-
-      const sessionSub = supabase.channel(`session_changes_${crypto.randomUUID()}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: `user_id=eq.${settingData.user_id}` }, () => {
-          fetchSession();
+      sessionSub = supabase.channel(`session_changes_${crypto.randomUUID()}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: `user_id=eq.${currentUserId}` }, () => {
+          fetchAll();
         })
-        .subscribe();
-
-      setLoading(false);
-
-      return () => {
-        settingsSub.unsubscribe();
-        sessionSub.unsubscribe();
-      };
+        .subscribe((status, err) => {
+          if (cancelled) return;
+          if (status === 'SUBSCRIBED') stopPolling();
+          else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') startPolling();
+        });
     };
     
     init();
+
+    return () => {
+      cancelled = true;
+      stopPolling();
+      if (settingsSub) supabase.removeChannel(settingsSub);
+      if (sessionSub) supabase.removeChannel(sessionSub);
+    };
   }, [token, setAllSettings, setPreviewMode, isDemo]);
 
   if (loading) return null;

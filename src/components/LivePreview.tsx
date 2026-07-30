@@ -47,9 +47,37 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
   const displayUsers = previewMode === 'demo' ? demoUsers : realUsers;
   const topUsers = displayUsers.slice(0, settings.topCount);
 
-  // Helper for text styles
+  const hexToRgba = (hex: string, opacity: number) => {
+    if (!hex || hex === 'transparent') return 'transparent';
+    if (hex.startsWith('#')) {
+      const h = hex.slice(1);
+      let r = 0, g = 0, b = 0, a = opacity;
+      if (h.length === 3) {
+        r = parseInt(h[0] + h[0], 16);
+        g = parseInt(h[1] + h[1], 16);
+        b = parseInt(h[2] + h[2], 16);
+      } else if (h.length === 6) {
+        r = parseInt(h.slice(0, 2), 16);
+        g = parseInt(h.slice(2, 4), 16);
+        b = parseInt(h.slice(4, 6), 16);
+      } else if (h.length === 8) {
+        r = parseInt(h.slice(0, 2), 16);
+        g = parseInt(h.slice(2, 4), 16);
+        b = parseInt(h.slice(4, 6), 16);
+        a = (parseInt(h.slice(6, 8), 16) / 255) * opacity;
+      }
+      return `rgba(${r}, ${g}, ${b}, ${a})`;
+    }
+    return hex;
+  };
+
   const getTextStyle = (prefix: 'title' | 'position' | 'username' | 'counter') => {
     const s = settings as any;
+    let shadowString = 'none';
+    const shadowColor = s[`${prefix}ShadowColor`];
+    if (shadowColor && shadowColor !== 'transparent') {
+      shadowString = `2px 2px 4px ${hexToRgba(shadowColor, s[`${prefix}ShadowOpacity`] ?? 1)}`;
+    }
     return {
       fontFamily: s[`${prefix}Font`],
       fontSize: s[`${prefix}Size`],
@@ -58,7 +86,7 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
       letterSpacing: s[`${prefix}LetterSpacing`],
       opacity: s[`${prefix}Opacity`],
       WebkitTextStroke: `${s[`${prefix}StrokeWidth`]} ${s[`${prefix}StrokeColor`]}`,
-      textShadow: s[`${prefix}ShadowColor`] !== 'transparent' ? s[`${prefix}ShadowOpacity`] : 'none', // We stored the whole shadow string in Opacity field for simplicity in UI, wait, the UI mapped X Y Blur to ShadowOpacity
+      textShadow: shadowString,
     };
   };
 
@@ -70,7 +98,6 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
     return settings.positionColor;
   };
 
-  // Build row animation variants
   const getVariants = () => {
     const type = settings.animationType;
     if (type === 'none') return { initial: false, animate: false, exit: false };
@@ -85,6 +112,8 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
       case 'slide-up': initial.y = 50; exit.y = -50; break;
       case 'zoom': initial.scale = 0.5; exit.scale = 0.5; break;
       case 'spring': initial.scale = 0.8; initial.y = 20; break;
+      case 'pulse': initial.scale = 0.95; break;
+      case 'smooth': initial.y = 10; break;
     }
 
     return {
@@ -101,113 +130,125 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
 
   const variants = getVariants();
 
-  const hexToRgba = (hex: string, opacity: number) => {
-    if (!hex) return 'transparent';
-    const r = parseInt(hex.slice(1, 3), 16) || 0;
-    const g = parseInt(hex.slice(3, 5), 16) || 0;
-    const b = parseInt(hex.slice(5, 7), 16) || 0;
-    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-  };
-
   return (
-    <div className="w-full min-h-screen flex items-start justify-center pt-10">
+    <div className="w-full min-h-screen flex items-start justify-center pt-10 relative">
       <div 
-        className="flex flex-col box-border relative overflow-hidden rounded-xl p-8"
+        className="flex flex-col box-border relative overflow-hidden"
         style={{ 
           width: settings.rowWidth,
-          backgroundColor: hexToRgba(settings.backgroundColor, settings.backgroundOpacity),
-          backgroundImage: settings.backgroundImagePath ? `url(${settings.backgroundImagePath})` : 'none',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
+          backgroundColor: settings.backgroundMode === 'transparent' ? 'transparent' : hexToRgba(settings.backgroundColor, settings.backgroundOpacity),
           border: parseInt(settings.rowBorderWidth) > 0 ? `${settings.rowBorderWidth} solid ${settings.rowBorderColor}` : 'none',
+          borderRadius: settings.overlayRadius || '0px',
+          padding: '32px' // Base padding for the container
         }}
       >
-
-        {settings.showTitle && (
-          <h2 
-            className="mb-6 text-center"
-            style={{ 
-              ...getTextStyle('title'),
-              textShadow: settings.titleShadowColor !== 'transparent' ? `2px 2px 4px ${settings.titleShadowColor}` : 'none'
-            }}
-          >
-            {settings.titleText}
-          </h2>
+        {settings.backgroundMode === 'image' && settings.backgroundImagePath && (
+          <div className="absolute inset-0 z-0">
+            <img 
+              src={settings.backgroundImagePath} 
+              alt="bg"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: settings.backgroundImageFit || 'cover',
+                objectPosition: settings.backgroundImagePosition || 'center',
+                opacity: settings.backgroundImageOpacity,
+                filter: settings.backgroundBlur !== '0px' ? `blur(${settings.backgroundBlur})` : 'none'
+              }}
+            />
+            {settings.backgroundOverlayOpacity > 0 && (
+              <div 
+                className="absolute inset-0" 
+                style={{ backgroundColor: `rgba(0,0,0,${settings.backgroundOverlayOpacity})` }}
+              />
+            )}
+          </div>
         )}
 
-      <div 
-        className="flex flex-col relative w-full" 
-        style={{ gap: `${settings.rowGap}px` }}
-      >
-        <AnimatePresence mode="popLayout">
-          {topUsers.map((user, index) => {
-            const isTop3 = index < 3 && settings.top3HighlightEnabled;
-            
-            return (
-                <motion.div
-                  key={user.id}
-                  layout={settings.rankAnimationEnabled}
-                  initial={variants.initial}
-                  animate={variants.animate}
-                  exit={variants.exit}
-                  transition={variants.transition as any}
-                  className={`flex items-center justify-between relative overflow-hidden`}
-                  style={{
-                    backgroundColor: 'transparent',
-                    padding: '12px 24px',
-                    boxShadow: settings.rowShadowEnabled ? `0px 4px 12px rgba(0,0,0,0.3)` : 'none',
-                    height: settings.rowHeight !== 'auto' ? settings.rowHeight : undefined,
-                    minHeight: settings.rowHeight === 'auto' ? '40px' : undefined
-                  }}
-                >
-                <div className="flex items-center gap-4 w-full z-10 relative">
-                  {/* Position */}
-                  <div 
-                    style={{ 
-                      ...getTextStyle('position'),
-                      color: getPositionColor(index),
-                      width: '40px',
-                      textAlign: 'center',
-                      textShadow: settings.positionShadowColor !== 'transparent' ? `${settings.positionShadowOpacity} ${settings.positionShadowColor}` : 'none'
-                    }}
-                  >
-                    #{index + 1}
-                  </div>
+        <div className="relative z-10 w-full">
+          {settings.showTitle && (
+            <h2 
+              className="mb-6 text-center"
+              style={getTextStyle('title')}
+            >
+              {settings.titleText}
+            </h2>
+          )}
 
-                  {/* Username */}
-                  <div 
-                    className="flex-1 truncate"
-                    style={{ 
-                      ...getTextStyle('username'),
-                      textShadow: settings.usernameShadowColor !== 'transparent' ? `${settings.usernameShadowOpacity} ${settings.usernameShadowColor}` : 'none'
-                    }}
-                  >
-                    {user.username}
-                  </div>
-
-                  {/* Counter */}
-                  <motion.div 
-                    key={`${user.id}-${user.count}`}
-                    initial={settings.counterAnimation === 'pop' ? { scale: 1.5, color: settings.highlightColor } : false}
-                    animate={{ scale: 1, color: settings.counterColor }}
-                    transition={{ duration: 0.3 }}
-                    className="whitespace-nowrap"
-                    style={{ 
-                      ...getTextStyle('counter'),
-                      fontVariantNumeric: 'tabular-nums',
-                      textShadow: settings.counterShadowColor !== 'transparent' ? `${settings.counterShadowOpacity} ${settings.counterShadowColor}` : 'none'
-                    }}
-                  >
-                    {user.count.toLocaleString('ru-RU')}
-                  </motion.div>
-                </div>
+          <div 
+            className="flex flex-col relative w-full" 
+            style={{ gap: `${settings.rowGap}px` }}
+          >
+            <AnimatePresence mode="popLayout">
+              {topUsers.map((user, index) => {
+                const isTop3 = index < 3 && settings.top3HighlightEnabled;
                 
-                {/* Optional highlight flash overlay could go here */}
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-      </div>
+                return (
+                    <motion.div
+                      key={user.id}
+                      layout={settings.rankAnimationEnabled}
+                      initial={variants.initial}
+                      animate={variants.animate}
+                      exit={variants.exit}
+                      transition={variants.transition as any}
+                      className={`flex items-center justify-between relative overflow-hidden`}
+                      style={{
+                        backgroundColor: hexToRgba(settings.rowColor, settings.rowOpacity),
+                        padding: settings.rowPadding || '12px 16px',
+                        borderRadius: settings.rowRadius || '8px',
+                        boxShadow: settings.rowShadowEnabled ? `0px 4px 12px rgba(0,0,0,0.3)` : 'none',
+                        height: settings.rowHeight !== 'auto' ? settings.rowHeight : undefined,
+                        minHeight: settings.rowHeight === 'auto' ? '40px' : undefined
+                      }}
+                    >
+                    <div className="flex items-center gap-4 w-full z-10 relative">
+                      {/* Position */}
+                      {settings.elementShowRank && (
+                        <div 
+                          style={{ 
+                            ...getTextStyle('position'),
+                            color: getPositionColor(index),
+                            width: '40px',
+                            textAlign: 'center',
+                          }}
+                        >
+                          #{index + 1}
+                        </div>
+                      )}
+
+                      {/* Username */}
+                      {settings.elementShowName && (
+                        <div 
+                          className="flex-1 truncate"
+                          style={getTextStyle('username')}
+                        >
+                          {user.username}
+                        </div>
+                      )}
+
+                      {/* Counter */}
+                      {settings.elementShowCount && (
+                        <motion.div 
+                          key={`${user.id}-${user.count}`}
+                          initial={settings.counterAnimation === 'pop' ? { scale: 1.5, color: settings.highlightColor } : false}
+                          animate={{ scale: 1, color: settings.counterColor }}
+                          transition={{ duration: 0.3 }}
+                          className="whitespace-nowrap"
+                          style={{ 
+                            ...getTextStyle('counter'),
+                            fontVariantNumeric: 'tabular-nums',
+                          }}
+                        >
+                          {user.count.toLocaleString('ru-RU')}
+                        </motion.div>
+                      )}
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        </div>
       </div>
     </div>
   );
