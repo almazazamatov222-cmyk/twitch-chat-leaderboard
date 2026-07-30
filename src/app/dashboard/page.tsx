@@ -6,8 +6,8 @@ import { useSettingsStore, defaultSettings, OverlaySettings } from '@/store/useS
 import SettingsPanel from '@/components/SettingsPanel';
 import LivePreview from '@/components/LivePreview';
 import DiagnosticPanel from '@/components/DiagnosticPanel';
-import { useTwitchChat } from '@/hooks/useTwitchChat';
 import { useSession } from '@/hooks/useSession';
+import { useDiagnostics } from '@/hooks/useDiagnostics';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
@@ -22,8 +22,21 @@ export default function DashboardPage() {
   const { activeSession } = useSession();
   const [realtimeStatus, setRealtimeStatus] = useState<string>('INIT');
 
-  // Dashboard can also participate in master election and listen to chat
-  const chatState = useTwitchChat(twitchUsername, activeSession?.id ?? null, overlayToken);
+  const diag = useDiagnostics(user?.user_metadata?.provider_id || null);
+
+  useEffect(() => {
+    if (user?.user_metadata?.provider_id) {
+      // Create/verify EventSub subscription on Dashboard load
+      fetch('/api/twitch/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          twitchId: user.user_metadata.provider_id,
+          userId: user.id
+        })
+      }).catch(err => console.error('Failed to subscribe:', err));
+    }
+  }, [user]);
 
   
   // 16:9 Canvas Background modes
@@ -194,14 +207,8 @@ export default function DashboardPage() {
           <DiagnosticPanel 
             twitchUsername={twitchUsername}
             sessionId={activeSession?.id ?? null}
-            isMaster={chatState.isMaster}
-            chatStatus={chatState.chatStatus}
-            joinStatus={chatState.joinStatus}
-            lastMessageAt={chatState.lastMessageAt}
-            lastFlushAt={chatState.lastFlushAt}
-            lastRpcError={chatState.lastRpcError}
-            currentBatchSize={chatState.currentBatchSize}
             realtimeStatus={realtimeStatus}
+            diag={diag}
           />
         </div>
       </div>

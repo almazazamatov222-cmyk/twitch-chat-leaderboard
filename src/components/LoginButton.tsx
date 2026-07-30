@@ -14,12 +14,12 @@ export default function LoginButton() {
         provider: 'twitch',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
-          scopes: 'chat:read'
+          scopes: 'user:read:chat user:bot channel:bot'
         }
       });
       if (error) throw error;
-    } catch (error: any) {
-      console.error('Error logging in:', error.message);
+    } catch (error: Error | unknown) {
+      console.error('Error logging in:', error instanceof Error ? error.message : String(error));
       setLoading(false);
     }
   };

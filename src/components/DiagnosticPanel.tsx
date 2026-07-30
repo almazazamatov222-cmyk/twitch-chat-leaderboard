@@ -1,16 +1,11 @@
 import React from 'react';
+import { DiagnosticData } from '@/hooks/useDiagnostics';
 
 interface DiagnosticPanelProps {
   twitchUsername: string;
   sessionId: string | null;
-  isMaster: boolean;
-  chatStatus: string;
-  joinStatus: string;
-  lastMessageAt: string | null;
-  lastFlushAt: string | null;
-  lastRpcError: string | null;
-  currentBatchSize: number;
   realtimeStatus: string;
+  diag: DiagnosticData | null;
 }
 
 export default function DiagnosticPanel(props: DiagnosticPanelProps) {
@@ -20,22 +15,23 @@ export default function DiagnosticPanel(props: DiagnosticPanelProps) {
       <div className="space-y-1">
         <div><span className="text-gray-400">Username:</span> {props.twitchUsername || 'N/A'}</div>
         <div><span className="text-gray-400">Session ID:</span> {props.sessionId || 'N/A'}</div>
-        <div><span className="text-gray-400">Is Master:</span> {props.isMaster ? <span className="text-green-400">YES</span> : <span className="text-red-400">NO</span>}</div>
-        <div><span className="text-gray-400">Chat Status:</span> {props.chatStatus}</div>
-        <div><span className="text-gray-400">Join Status:</span> {props.joinStatus}</div>
         <div><span className="text-gray-400">Realtime:</span> {props.realtimeStatus}</div>
-        <div><span className="text-gray-400">Batch Size:</span> {props.currentBatchSize}</div>
         
-        <div className="pt-1 mt-1 border-t border-gray-800">
-          <span className="text-gray-400">Last Msg:</span> {props.lastMessageAt ? new Date(props.lastMessageAt).toLocaleTimeString() : 'Never'}
+        <div className="pt-2 mt-2 border-t border-gray-800">
+          <div><span className="text-gray-400">EventSub Status:</span> {props.diag?.subscription_status || 'UNKNOWN'}</div>
+          <div className="truncate"><span className="text-gray-400">Sub ID:</span> {props.diag?.subscription_id || 'N/A'}</div>
         </div>
-        <div>
-          <span className="text-gray-400">Last Flush:</span> {props.lastFlushAt ? new Date(props.lastFlushAt).toLocaleTimeString() : 'Never'}
+
+        <div className="pt-2 mt-2 border-t border-gray-800">
+          <div><span className="text-gray-400">Last Webhook:</span> {props.diag?.last_webhook_received_at ? new Date(props.diag.last_webhook_received_at).toLocaleTimeString() : 'Never'}</div>
+          <div><span className="text-gray-400">Last DB Inc:</span> {props.diag?.last_db_increment_at ? new Date(props.diag.last_db_increment_at).toLocaleTimeString() : 'Never'}</div>
+          <div className="truncate"><span className="text-gray-400">Last Msg ID:</span> {props.diag?.last_message_id || 'None'}</div>
+          <div><span className="text-gray-400">Last Chatter:</span> {props.diag?.last_chatter_username || 'None'}</div>
         </div>
         
-        {props.lastRpcError && (
+        {props.diag?.last_webhook_error && (
           <div className="pt-2 mt-2 border-t border-red-900/50 text-red-400 break-words">
-            <strong>RPC Error:</strong> {props.lastRpcError}
+            <strong>Webhook Error:</strong> {props.diag.last_webhook_error}
           </div>
         )}
       </div>

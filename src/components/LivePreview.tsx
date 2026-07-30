@@ -34,6 +34,7 @@ export default function LivePreview({ sessionId, onRealtimeStatusChange }: LiveP
         username: `StreamUser_${Math.floor(Math.random() * 1000)}`,
         count: Math.floor(Math.random() * 500) + 10
       })).sort((a, b) => b.count - a.count);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDemoUsers(users);
 
       // Randomly update demo data every 2 seconds

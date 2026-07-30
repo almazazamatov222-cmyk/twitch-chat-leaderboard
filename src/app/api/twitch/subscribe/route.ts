@@ -1,104 +1,107 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID || '';
-const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || '';
-const TWITCH_WEBHOOK_SECRET = process.env.TWITCH_WEBHOOK_SECRET || '';
+const CLIENT_ID = process.env.NEXT_PUBLIC_TWITCH_CLIENT_ID || '';
+const CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || '';
+const WEBHOOK_SECRET = process.env.TWITCH_WEBHOOK_SECRET || '';
+const WEBHOOK_CALLBACK = 'https://twitch-chat-leaderboard.vercel.app/api/webhooks/twitch';
 
-// Initialize Supabase with service role to bypass RLS if needed, though for auth check we use anon
+// We need service role key to insert diagnostics
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+async function getAppAccessToken() {
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    client_secret: CLIENT_SECRET,
+    grant_type: 'client_credentials',
+  });
+  const res = await fetch(`https://id.twitch.tv/oauth2/token`, {
+    method: 'POST',
+    body: params,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Failed to get app token');
+  return data.access_token;
+}
 
 export async function POST(req: Request) {
   try {
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: req.headers.get('Authorization') || '',
-        },
-      },
+    const { twitchId, userId } = await req.json();
+
+    if (!twitchId || !userId) {
+      return new NextResponse('Missing twitchId or userId', { status: 400 });
+    }
+
+    const appToken = await getAppAccessToken();
+
+    // 1. Get existing subscriptions
+    const subRes = await fetch(`https://api.twitch.tv/helix/eventsub/subscriptions?type=channel.chat.message&status=enabled`, {
+      headers: {
+        'Client-ID': CLIENT_ID,
+        'Authorization': `Bearer ${appToken}`,
+      }
     });
+    const subData = await subRes.json();
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    let existingSub = null;
+    if (subData.data && Array.isArray(subData.data)) {
+      existingSub = subData.data.find((sub: any) => 
+        sub.condition.broadcaster_user_id === twitchId &&
+        sub.transport.callback === WEBHOOK_CALLBACK
+      );
     }
 
-    if (!TWITCH_CLIENT_ID || !TWITCH_CLIENT_SECRET || !TWITCH_WEBHOOK_SECRET) {
-      return NextResponse.json({ error: 'Missing Twitch API credentials in environment' }, { status: 500 });
-    }
+    let status = 'enabled';
+    let subId = existingSub?.id;
 
-    // Get the broadcaster's Twitch ID
-    const broadcasterId = user.user_metadata.provider_id;
-    
-    // Determine the webhook URL based on the request host
-    // (Ensure it uses https in production)
-    const host = req.headers.get('host') || '';
-    const protocol = host.includes('localhost') ? 'http' : 'https';
-    const webhookUrl = `${protocol}://${host}/api/webhooks/twitch`;
-
-    // 1. Get App Access Token
-    const tokenRes = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${TWITCH_CLIENT_ID}&client_secret=${TWITCH_CLIENT_SECRET}&grant_type=client_credentials`, {
-      method: 'POST',
-    });
-    
-    if (!tokenRes.ok) {
-      const errText = await tokenRes.text();
-      return NextResponse.json({ error: 'Failed to get Twitch access token', details: errText }, { status: 500 });
-    }
-
-    const { access_token: appAccessToken } = await tokenRes.json();
-
-    // 2. Function to subscribe to a specific event type
-    const subscribeToEvent = async (type: string) => {
-      const res = await fetch('https://api.twitch.tv/helix/eventsub/subscriptions', {
+    if (!existingSub) {
+      // 2. Create subscription
+      const createRes = await fetch('https://api.twitch.tv/helix/eventsub/subscriptions', {
         method: 'POST',
         headers: {
-          'Client-Id': TWITCH_CLIENT_ID,
-          'Authorization': `Bearer ${appAccessToken}`,
+          'Client-ID': CLIENT_ID,
+          'Authorization': `Bearer ${appToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          type: type,
+          type: 'channel.chat.message',
           version: '1',
           condition: {
-            broadcaster_user_id: broadcasterId
+            broadcaster_user_id: twitchId,
+            user_id: twitchId,
           },
           transport: {
             method: 'webhook',
-            callback: webhookUrl,
-            secret: TWITCH_WEBHOOK_SECRET
+            callback: WEBHOOK_CALLBACK,
+            secret: WEBHOOK_SECRET,
           }
-        }),
+        })
       });
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        if (errorData.status === 409 || (errorData.message && errorData.message.includes('subscription already exists'))) {
-          return { status: 'already_exists' };
-        }
-        throw new Error(JSON.stringify(errorData));
-      }
-      return { status: 'created' };
-    };
+      const createData = await createRes.json();
 
-    // 3. Subscribe to both online and offline events
-    const onlineRes = await subscribeToEvent('stream.online');
-    const offlineRes = await subscribeToEvent('stream.offline');
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Successfully subscribed to Twitch EventSub webhooks',
-      details: {
-        online: onlineRes.status,
-        offline: offlineRes.status,
-        webhookUrl
+      if (!createRes.ok) {
+        console.error('Failed to create subscription:', createData);
+        return NextResponse.json({ success: false, error: createData.message }, { status: 400 });
       }
+
+      subId = createData.data[0].id;
+      status = createData.data[0].status; // Should be 'webhook_callback_verification_pending'
+    }
+
+    // Update DB diagnostics
+    await supabase.from('webhook_diagnostics').upsert({
+      twitch_id: twitchId,
+      subscription_status: status,
+      subscription_id: subId,
     });
 
-  } catch (error: any) {
-    console.error('Subscription error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ success: true, status, id: subId });
+
+  } catch (err: any) {
+    console.error('Subscription API Error:', err);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

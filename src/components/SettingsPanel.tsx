@@ -178,6 +178,27 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
                 </select>
               </div>
 
+              <div className="pt-4 border-t border-gray-800">
+                <button
+                  onClick={async () => {
+                    await supabase.auth.signInWithOAuth({
+                      provider: 'twitch',
+                      options: {
+                        redirectTo: `${window.location.origin}/auth/callback`,
+                        scopes: 'user:read:chat user:bot channel:bot'
+                      }
+                    });
+                  }}
+                  className="w-full bg-[#9146FF] hover:bg-[#772ce8] text-white py-2 px-4 rounded font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  <RefreshCw size={16} />
+                  Переподключить Twitch-чат
+                </button>
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  Необходимо для выдачи прав чтения чата серверу (EventSub).
+                </p>
+              </div>
+
               <div className="space-y-2 pt-2 border-t border-gray-800">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium">Заголовок</label>

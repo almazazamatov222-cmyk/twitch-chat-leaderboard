@@ -2,15 +2,14 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
-// The webhook secret you'll configure in Twitch API when subscribing
 const TWITCH_WEBHOOK_SECRET = process.env.TWITCH_WEBHOOK_SECRET || '';
-
-// We need service role key to insert sessions securely without user token
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function POST(req: Request) {
+  let twitchIdForDiag: string | null = null;
+  
   try {
     const rawBody = await req.text();
     const signature = req.headers.get('Twitch-Eventsub-Message-Signature');
@@ -22,56 +21,69 @@ export async function POST(req: Request) {
       return new NextResponse('Missing headers', { status: 400 });
     }
 
-    // Verify signature
+    // Verify signature safely
     const hmacMessage = messageId + messageTimestamp + rawBody;
     const hmac = crypto.createHmac('sha256', TWITCH_WEBHOOK_SECRET);
     hmac.update(hmacMessage);
     const expectedSignature = `sha256=${hmac.digest('hex')}`;
-
-    if (signature !== expectedSignature) {
-      // For local testing without secrets you might want to bypass this conditionally
-      // but in production it's critical.
+    
+    // timingSafeEqual requires same length buffers
+    if (signature.length !== expectedSignature.length || 
+        !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
       if (process.env.NODE_ENV === 'production') {
         return new NextResponse('Invalid signature', { status: 403 });
       }
     }
 
-    // Parse JSON
     const body = JSON.parse(rawBody);
 
-    // Handle verification challenge
     if (messageType === 'webhook_callback_verification') {
       return new NextResponse(body.challenge, {
         status: 200,
-        headers: {
-          'Content-Type': 'text/plain',
-        },
+        headers: { 'Content-Type': 'text/plain' },
       });
     }
 
-    // Handle notifications
+    if (messageType === 'revocation') {
+      // Update diag state
+      const event = body.event;
+      if (event?.broadcaster_user_id) {
+        await supabase.from('webhook_diagnostics').upsert({
+          twitch_id: event.broadcaster_user_id,
+          subscription_status: 'revoked',
+          last_webhook_error: 'Subscription revoked by Twitch'
+        });
+      }
+      return new NextResponse('OK', { status: 200 });
+    }
+
     if (messageType === 'notification') {
       const event = body.event;
       const subscriptionType = body.subscription.type;
-      
       const twitchId = event.broadcaster_user_id;
+      twitchIdForDiag = twitchId;
+
+      // Update diagnostic: last received
+      await supabase.from('webhook_diagnostics').upsert({
+        twitch_id: twitchId,
+        last_webhook_received_at: new Date().toISOString(),
+        last_webhook_error: null
+      });
 
       // Find user_id by twitch_id
       const { data: userData, error: userError } = await supabase
         .from('settings')
-        .select('user_id')
+        .select('*')
         .eq('twitch_id', twitchId)
         .single();
 
       if (userError || !userData) {
-        console.error('Webhook: User not found for twitch_id', twitchId);
-        return new NextResponse('User not found', { status: 404 });
+        throw new Error('User settings not found for twitch_id: ' + twitchId);
       }
 
       const userId = userData.user_id;
 
       if (subscriptionType === 'stream.online') {
-        // Use RPC to close existing and open new session in a single transaction
         await supabase.rpc('handle_stream_online', {
           p_user_id: userId,
           p_title: event.title || 'Live Stream',
@@ -79,10 +91,65 @@ export async function POST(req: Request) {
         });
       } 
       else if (subscriptionType === 'stream.offline') {
-        // Use RPC to close live session and open offline session
         await supabase.rpc('handle_stream_offline', {
           p_user_id: userId
         });
+      }
+      else if (subscriptionType === 'channel.chat.message') {
+        const msgId = event.message_id;
+        const chatterId = event.chatter_user_id;
+        const chatterUsername = event.chatter_user_name || event.chatter_user_login;
+        const text = event.message.text;
+
+        // 1. Deduplication
+        const { error: dedupError } = await supabase
+          .from('processed_twitch_messages')
+          .insert({
+            message_id: msgId,
+            broadcaster_user_id: twitchId,
+            chatter_user_id: chatterId
+          });
+
+        if (dedupError) {
+          if (dedupError.code === '23505') {
+            // Already processed
+            return new NextResponse('OK (Duplicate)', { status: 200 });
+          }
+          throw dedupError;
+        }
+
+        // 2. Filters
+        let shouldCount = true;
+        if (userData.ignore_commands && text.startsWith('!')) shouldCount = false;
+        if (userData.ignore_streamer && chatterId === twitchId) shouldCount = false;
+        if (text.length < (userData.min_message_length || 1)) shouldCount = false;
+
+        if (shouldCount) {
+          // 3. Get Active Session
+          const { data: sessionData, error: sessionErr } = await supabase
+            .rpc('get_or_create_active_session', { p_user_id: userId });
+            
+          if (sessionErr) throw sessionErr;
+          
+          const sessionId = sessionData;
+
+          // 4. Increment
+          const { error: incError } = await supabase.rpc('increment_message_stat_batch', {
+            p_session_id: sessionId,
+            p_batch: [{ id: chatterId, username: chatterUsername, count: 1 }],
+            p_overlay_token: null
+          });
+
+          if (incError) throw incError;
+
+          // 5. Update Diagnostics
+          await supabase.from('webhook_diagnostics').upsert({
+            twitch_id: twitchId,
+            last_message_id: msgId,
+            last_chatter_username: chatterUsername,
+            last_db_increment_at: new Date().toISOString()
+          });
+        }
       }
 
       return new NextResponse('OK', { status: 200 });
@@ -92,6 +159,12 @@ export async function POST(req: Request) {
 
   } catch (err: any) {
     console.error('Webhook processing error:', err);
+    if (twitchIdForDiag) {
+      await supabase.from('webhook_diagnostics').upsert({
+        twitch_id: twitchIdForDiag,
+        last_webhook_error: err.message || String(err)
+      });
+    }
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
