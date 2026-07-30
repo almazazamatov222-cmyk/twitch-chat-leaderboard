@@ -119,6 +119,7 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
           backgroundImage: settings.backgroundImagePath ? `url(${settings.backgroundImagePath})` : 'none',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
+          border: parseInt(settings.rowBorderWidth) > 0 ? `${settings.rowBorderWidth} solid ${settings.rowBorderColor}` : 'none',
         }}
       >
 
@@ -154,7 +155,6 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
                   style={{
                     backgroundColor: 'transparent',
                     padding: '12px 24px',
-                    border: parseInt(settings.rowBorderWidth) > 0 ? `${settings.rowBorderWidth} solid ${settings.rowBorderColor}` : 'none',
                     boxShadow: settings.rowShadowEnabled ? `0px 4px 12px rgba(0,0,0,0.3)` : 'none',
                     height: settings.rowHeight !== 'auto' ? settings.rowHeight : undefined,
                     minHeight: settings.rowHeight === 'auto' ? '40px' : undefined

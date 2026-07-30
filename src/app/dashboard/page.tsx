@@ -145,7 +145,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Canvas Area */}
-        <div className="flex-1 overflow-hidden relative flex items-center justify-center p-4 lg:p-8"
+        <div className="flex-1 overflow-y-auto relative flex items-start justify-center p-4 lg:p-8"
           style={{
             background: canvasBg === 'grid' ? 'url(https://transparenttextures.com/patterns/cubes.png) rgba(31, 41, 55, 0.2)' :
                        canvasBg === 'light' ? '#f3f4f6' : 
@@ -154,15 +154,15 @@ export default function DashboardPage() {
             backgroundColor: canvasBg === 'grid' ? 'rgba(31, 41, 55, 0.2)' : undefined
           }}
         >
-          {/* 16:9 Aspect Ratio Container for OBS simulation */}
-          <div className="w-full max-w-[500px] h-[800px] border border-gray-600/50 shadow-2xl relative overflow-hidden rounded shadow-black/50"
+          {/* Container for OBS simulation */}
+          <div className="w-full max-w-[500px] min-h-[800px] h-max border border-gray-600/50 shadow-2xl relative rounded shadow-black/50 overflow-hidden"
                style={{ 
                  containerType: 'size',
                }}
           >
-             <div className="absolute inset-0 w-full h-full flex items-center justify-center">
-               <div className="w-[500px] h-[800px] origin-center relative pointer-events-none" style={{
-                 transform: 'scale(min(100cqi / 500, 100cqb / 800))'
+             <div className="w-full h-full min-h-[800px] flex items-start justify-center">
+               <div className="w-[500px] origin-top relative" style={{
+                 transform: 'scale(min(100cqi / 500, 1))'
                }}>
                  <LivePreview />
                </div>
