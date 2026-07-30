@@ -39,16 +39,25 @@ export function useSession() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data } = await supabase
-        .from('sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'active')
-        .order('started_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      setActiveSession(data || null);
+      // This will ensure an active session exists (whether offline or live)
+      const { data: sessionId, error: rpcError } = await supabase.rpc('get_or_create_active_session');
+      
+      if (rpcError) {
+        console.error('RPC Error:', rpcError);
+        return;
+      }
+      
+      if (sessionId) {
+        const { data } = await supabase
+          .from('sessions')
+          .select('*')
+          .eq('id', sessionId)
+          .single();
+          
+        setActiveSession(data || null);
+      } else {
+        setActiveSession(null);
+      }
     } catch (err) {
       console.error('Error fetching session', err);
     } finally {

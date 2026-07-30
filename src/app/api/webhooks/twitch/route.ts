@@ -71,30 +71,18 @@ export async function POST(req: Request) {
       const userId = userData.user_id;
 
       if (subscriptionType === 'stream.online') {
-        // Close existing active sessions first
-        await supabase
-          .from('sessions')
-          .update({ status: 'completed', ended_at: new Date().toISOString() })
-          .eq('user_id', userId)
-          .eq('status', 'active');
-
-        // Create new session
-        await supabase
-          .from('sessions')
-          .insert({
-            user_id: userId,
-            status: 'active',
-            stream_title: event.title || null,
-            category_name: event.category_name || null
-          });
+        // Use RPC to close existing and open new session in a single transaction
+        await supabase.rpc('handle_stream_online', {
+          p_user_id: userId,
+          p_title: event.title || 'Live Stream',
+          p_category: event.category_name || 'Just Chatting'
+        });
       } 
       else if (subscriptionType === 'stream.offline') {
-        // Complete the session
-        await supabase
-          .from('sessions')
-          .update({ status: 'completed', ended_at: new Date().toISOString() })
-          .eq('user_id', userId)
-          .eq('status', 'active');
+        // Use RPC to close live session and open offline session
+        await supabase.rpc('handle_stream_offline', {
+          p_user_id: userId
+        });
       }
 
       return new NextResponse('OK', { status: 200 });

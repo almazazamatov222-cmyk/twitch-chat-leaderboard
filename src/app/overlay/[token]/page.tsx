@@ -76,15 +76,16 @@ function OverlayContent({ token }: { token: string }) {
 
       // 3. Fetch active session
       const fetchSession = async () => {
-        const { data: sessionData } = await supabase
-          .from('sessions')
-          .select('id')
-          .eq('user_id', settingData.user_id)
-          .eq('status', 'active')
-          .single();
+        const { data: sessionId, error: rpcError } = await supabase.rpc('get_or_create_active_session', { p_overlay_token: token });
         
-        if (sessionData) {
-          setSessionId(sessionData.id);
+        if (rpcError) {
+          console.error('RPC Error in overlay:', rpcError);
+          setSessionId(null);
+          return;
+        }
+
+        if (sessionId) {
+          setSessionId(sessionId);
         } else {
           setSessionId(null);
         }
@@ -110,9 +111,6 @@ function OverlayContent({ token }: { token: string }) {
   }, [token, setAllSettings, setPreviewMode, isDemo]);
 
   if (loading) return null;
-  
-  // If no session AND not in demo mode, show nothing
-  if (!sessionId && !isDemo) return null;
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-transparent">
