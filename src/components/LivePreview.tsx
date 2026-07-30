@@ -44,7 +44,7 @@ export default function LivePreview({ sessionId }: LivePreviewProps) {
     }
   }, [previewMode, sessionId]);
 
-  const displayUsers = (previewMode === 'demo' || !sessionId) ? demoUsers : realUsers;
+  const displayUsers = previewMode === 'demo' ? demoUsers : realUsers;
   const topUsers = displayUsers.slice(0, settings.topCount);
 
   // Helper for text styles

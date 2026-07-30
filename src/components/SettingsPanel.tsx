@@ -211,7 +211,15 @@ export default function SettingsPanel({ overlayToken }: { overlayToken: string }
                    </div>
                    <div className="space-y-1">
                      <label className="text-xs text-gray-400">Прозрачность фона</label>
-                     <input type="range" min="0" max="1" step="0.05" value={settings.backgroundOpacity} onChange={(e) => updateSettings({ backgroundOpacity: Number(e.target.value) })} className="w-full accent-[#9146FF] h-8" />
+                     <input 
+                       type="range" 
+                       min="0" 
+                       max="1" 
+                       step="0.05" 
+                       value={1 - settings.backgroundOpacity} 
+                       onChange={(e) => updateSettings({ backgroundOpacity: 1 - Number(e.target.value) })} 
+                       className="w-full accent-[#9146FF] h-8" 
+                     />
                    </div>
                  </div>
 
