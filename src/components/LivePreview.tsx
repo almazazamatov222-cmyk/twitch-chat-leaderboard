@@ -202,41 +202,52 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
   const variants = getVariants();
 
   return (
-    <div className="w-full flex justify-center relative">
-      <div 
-        className="flex flex-col box-border relative overflow-hidden"
-        style={{ 
-          width: settings.rowWidth,
-          minHeight: '100vh',
-          backgroundColor: settings.backgroundMode === 'transparent' ? 'transparent' : hexToRgba(settings.backgroundColor, settings.backgroundOpacity),
-          border: parseInt(settings.rowBorderWidth) > 0 ? `${settings.rowBorderWidth} solid ${settings.rowBorderColor}` : 'none',
-          borderRadius: settings.overlayRadius || '0px',
-          padding: '40px 32px 32px 32px' // Base padding for the container
-        }}
-      >
-        {settings.backgroundMode === 'image' && settings.backgroundImagePath && (
-          <div className="absolute inset-0 z-0">
-            <img 
-              src={settings.backgroundImagePath} 
-              alt="bg"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: settings.backgroundImageFit || 'cover',
-                objectPosition: settings.backgroundImagePosition || 'center',
-                opacity: settings.backgroundImageOpacity,
-                filter: settings.backgroundBlur !== '0px' ? `blur(${settings.backgroundBlur})` : 'none'
-              }}
-            />
-            {settings.backgroundOverlayOpacity > 0 && (
-              <div 
-                className="absolute inset-0" 
-                style={{ backgroundColor: `rgba(0,0,0,${settings.backgroundOverlayOpacity})` }}
-              />
-            )}
-          </div>
-        )}
+    <>
+      {/* Absolute Full-Screen Background Layer */}
+      {settings.backgroundMode === 'image' && settings.backgroundImagePath && (
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+          <img 
+            src={settings.backgroundImagePath} 
+            alt="bg"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: settings.backgroundImageFit || 'cover',
+              objectPosition: settings.backgroundImagePosition || 'center',
+              opacity: settings.backgroundImageOpacity,
+              filter: settings.backgroundBlur !== '0px' ? `blur(${settings.backgroundBlur})` : 'none'
+            }}
+          />
+        </div>
+      )}
+      {settings.backgroundMode === 'color' && settings.backgroundColor && (
+        <div 
+          className="absolute inset-0 z-0 pointer-events-none" 
+          style={{ 
+            backgroundColor: hexToRgba(settings.backgroundColor, settings.backgroundOpacity) 
+          }} 
+        />
+      )}
+      {/* Background Overlay (dimming) */}
+      {(settings.backgroundMode === 'image' && settings.backgroundOverlayOpacity > 0) && (
+        <div 
+          className="absolute inset-0 z-0 pointer-events-none" 
+          style={{ backgroundColor: `rgba(0,0,0,${settings.backgroundOverlayOpacity})` }}
+        />
+      )}
 
+      {/* Content Layer */}
+      <div className="w-full h-full relative z-10 flex justify-center">
+        <div 
+          className="flex flex-col box-border relative overflow-hidden"
+          style={{ 
+            width: settings.rowWidth,
+            border: parseInt(settings.rowBorderWidth) > 0 ? `${settings.rowBorderWidth} solid ${settings.rowBorderColor}` : 'none',
+            borderRadius: settings.overlayRadius || '0px',
+            padding: '40px 32px 32px 32px', // Base padding for the container
+            height: 'fit-content' // Just wrap the content
+          }}
+        >
         <div className="relative z-10 w-full">
           {settings.showTitle && (
             <h2 

@@ -157,7 +157,7 @@ function OverlayContent({ token }: { token: string }) {
   if (loading) return null;
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-transparent">
+    <div className="absolute inset-0 overflow-hidden bg-transparent">
       <LivePreview 
         sessionId={sessionId} 
         overlayToken={token} 
