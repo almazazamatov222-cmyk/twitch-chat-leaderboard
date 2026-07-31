@@ -605,7 +605,7 @@ function TextSection({ settings, updateSettings }: { settings: OverlaySettings, 
   return (
     <div className="p-4 space-y-4 bg-gray-950 border-b border-gray-800">
       <div className="space-y-1">
-        <label className="text-xs text-gray-400">Шрифт (для всего текста)</label>
+        <label className="text-xs text-gray-400">Шрифт</label>
         <select 
           value={settings.titleFont}
           onChange={(e) => updateSettings({ 

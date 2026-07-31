@@ -6,7 +6,6 @@ import { useParams } from 'next/navigation';
 import {
   ArrowLeft,
   Clock3,
-  Download,
   Gamepad2,
   MessageSquare,
   Radio,
@@ -144,41 +143,6 @@ export default function SessionDetailsPage() {
     return () => window.clearInterval(interval);
   }, [refreshActiveSession, session?.status]);
 
-  const downloadFile = (content: string, type: string, extension: string) => {
-    if (!session) return;
-
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `stream_stats_${new Date(session.started_at).toISOString().split('T')[0]}.${extension}`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const exportCSV = () => {
-    if (!stats.length) return;
-
-    const escapeCell = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`;
-    const rows = stats.map((stat) => [
-      stat.twitch_user_id,
-      stat.twitch_username,
-      stat.messages_count,
-      new Date(stat.last_message_at).toISOString(),
-    ]);
-    const csv = [
-      ['Twitch User ID', 'Username', 'Messages Count', 'Last Message At'],
-      ...rows,
-    ].map((row) => row.map(escapeCell).join(',')).join('\n');
-
-    downloadFile(`\uFEFF${csv}`, 'text/csv;charset=utf-8', 'csv');
-  };
-
-  const exportJSON = () => {
-    if (!stats.length) return;
-    downloadFile(JSON.stringify({ session, participants: stats }, null, 2), 'application/json', 'json');
-  };
-
   if (loading) {
     return <div className="flex min-h-screen items-center justify-center bg-gray-950 p-8 text-white">Загрузка...</div>;
   }
@@ -216,7 +180,7 @@ export default function SessionDetailsPage() {
   return (
     <main className="min-h-screen bg-gray-950 px-4 py-6 text-white md:px-8 md:py-8">
       <div className="mx-auto max-w-5xl space-y-7">
-        <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <header>
           <div className="flex items-start gap-3">
             <Link
               href="/dashboard/history"
@@ -241,10 +205,6 @@ export default function SessionDetailsPage() {
             </div>
           </div>
 
-          <div className="flex gap-2 pl-11 md:pl-0">
-            <ExportButton label="CSV" onClick={exportCSV} disabled={!stats.length} />
-            <ExportButton label="JSON" onClick={exportJSON} disabled={!stats.length} primary />
-          </div>
         </header>
 
         <section className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="Информация о стриме">
@@ -257,7 +217,7 @@ export default function SessionDetailsPage() {
         <section className="overflow-hidden rounded-xl border border-gray-800 bg-gray-900">
           {isActive && (
             <div className="border-b border-yellow-700/40 bg-yellow-500/10 px-5 py-3 text-sm text-yellow-200">
-              Статистика участников и экспорт — снимок на момент открытия. Полный список автоматически обновится после завершения стрима.
+              Статистика участников — снимок на момент открытия. Полный список автоматически обновится после завершения стрима.
             </div>
           )}
           <div className="flex items-center justify-between border-b border-gray-800 px-5 py-4">
@@ -322,30 +282,5 @@ function InfoCard({
       </div>
       <div className="mt-2 truncate font-semibold text-gray-100" title={value}>{value}</div>
     </div>
-  );
-}
-
-function ExportButton({
-  label,
-  onClick,
-  disabled,
-  primary = false,
-}: {
-  label: string;
-  onClick: () => void;
-  disabled: boolean;
-  primary?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-        primary ? 'bg-[#9146FF] hover:bg-[#7b3be6]' : 'bg-gray-800 hover:bg-gray-700'
-      }`}
-    >
-      <Download size={16} /> {label}
-    </button>
   );
 }

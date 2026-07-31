@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import {
   calculateLeaderboardLayout,
   colorWithOpacity,
+  getLeaderboardPositionColor,
   scalePixelValue,
 } from '@/lib/overlayLayout';
 
@@ -152,14 +153,6 @@ export default function LivePreview({ sessionId, overlayToken }: LivePreviewProp
     };
   };
 
-  const getPositionColor = (index: number) => {
-    if (!settings.top3HighlightEnabled) return settings.positionColor;
-    if (index === 0) return settings.top1Color;
-    if (index === 1) return settings.top2Color;
-    if (index === 2) return settings.top3Color;
-    return settings.positionColor;
-  };
-
   const getVariants = () => {
     const type = settings.animationType;
     if (type === 'none') return { initial: false, animate: false, exit: false };
@@ -302,7 +295,7 @@ export default function LivePreview({ sessionId, overlayToken }: LivePreviewProp
                               layout.textScale,
                               layout.compact ? layout.rowHeight * 0.55 : undefined,
                             ),
-                            color: getPositionColor(index),
+                            color: getLeaderboardPositionColor(index, settings),
                             width: `${layout.positionWidth}px`,
                             flexShrink: 0,
                             textAlign: 'center',

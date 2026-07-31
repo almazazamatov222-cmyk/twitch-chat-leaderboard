@@ -40,6 +40,25 @@ export function getBackgroundModeForColor(
   return value.trim().toLowerCase() === 'transparent' ? 'transparent' : 'color';
 }
 
+interface LeaderboardPositionColors {
+  top3HighlightEnabled: boolean;
+  positionColor: string;
+  top1Color: string;
+  top2Color: string;
+  top3Color: string;
+}
+
+export function getLeaderboardPositionColor(
+  index: number,
+  colors: LeaderboardPositionColors,
+): string {
+  if (index >= 3) return '#ffffff';
+  if (!colors.top3HighlightEnabled) return colors.positionColor;
+  if (index === 0) return colors.top1Color;
+  if (index === 1) return colors.top2Color;
+  return colors.top3Color;
+}
+
 interface OverlayFrameSegmentStyle {
   position: 'fixed';
   top?: number;

@@ -5,6 +5,7 @@ import {
   calculateLeaderboardLayout,
   colorWithOpacity,
   getBackgroundModeForColor,
+  getLeaderboardPositionColor,
   getOverlayFrameSegments,
   getVisibleOverlayBorderWidth,
   getVisibleOverlayBorderColor,
@@ -64,6 +65,20 @@ test('keeps two-digit ranks separated from usernames in two columns', () => {
 
   assert.ok(layout.positionWidth >= 32);
   assert.ok(layout.itemContentGap >= 6);
+});
+
+test('keeps leaderboard positions 4 through 50 white', () => {
+  const colors = {
+    top3HighlightEnabled: true,
+    positionColor: '#ff0000',
+    top1Color: '#ffd700',
+    top2Color: '#c0c0c0',
+    top3Color: '#cd7f32',
+  };
+
+  assert.equal(getLeaderboardPositionColor(0, colors), '#ffd700');
+  assert.equal(getLeaderboardPositionColor(3, colors), '#ffffff');
+  assert.equal(getLeaderboardPositionColor(49, colors), '#ffffff');
 });
 
 test('maps user-facing transparency to CSS opacity', () => {
