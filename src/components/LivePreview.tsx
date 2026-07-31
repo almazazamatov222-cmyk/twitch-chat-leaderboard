@@ -150,7 +150,7 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
       shadowString = `2px 2px 4px ${hexToRgba(shadowColor, s[`${prefix}ShadowOpacity`] ?? 1)}`;
     }
     return {
-      fontFamily: s[`${prefix}Font`],
+      fontFamily: `'${s[`${prefix}Font`]}', sans-serif`,
       fontSize: s[`${prefix}Size`],
       fontWeight: s[`${prefix}Weight`] === 'bold' ? 700 : (s[`${prefix}Weight`] === 'normal' ? 400 : Number(s[`${prefix}Weight`])),
       color: s[`${prefix}Color`],
@@ -205,7 +205,7 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
     <div 
       className="w-full h-full relative overflow-hidden box-border"
       style={{
-        border: parseInt(settings.rowBorderWidth) > 0 ? `${settings.rowBorderWidth} solid ${settings.rowBorderColor}` : 'none',
+        border: parseInt(settings.overlayBorderWidth) > 0 ? `${settings.overlayBorderWidth} solid ${settings.overlayBorderColor}` : 'none',
         borderRadius: settings.overlayRadius || '0px',
         backgroundColor: settings.backgroundMode === 'color' ? hexToRgba(settings.backgroundColor, settings.backgroundOpacity) : 'transparent',
       }}
@@ -222,7 +222,8 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
               objectFit: settings.backgroundImageFit || 'cover',
               objectPosition: settings.backgroundImagePosition || 'center',
               opacity: settings.backgroundImageOpacity,
-              filter: settings.backgroundBlur !== '0px' ? `blur(${settings.backgroundBlur})` : 'none'
+              filter: settings.backgroundBlur !== '0px' ? `blur(${settings.backgroundBlur})` : 'none',
+              transform: settings.backgroundBlur !== '0px' ? 'scale(1.1)' : 'none'
             }}
           />
         </div>
@@ -242,6 +243,7 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
           className="flex flex-col box-border relative overflow-hidden"
           style={{ 
             width: settings.rowWidth,
+            maxWidth: '100%',
             padding: '40px 32px 32px 32px', // Base padding for the content
             height: 'fit-content' // Just wrap the content
           }}
@@ -272,11 +274,12 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
                       animate={variants.animate}
                       exit={variants.exit}
                       transition={variants.transition as any}
-                      className={`flex items-center justify-between relative overflow-hidden`}
+                      className={`flex items-center justify-between relative overflow-hidden box-border`}
                       style={{
                         backgroundColor: hexToRgba(settings.rowColor, settings.rowOpacity),
                         padding: settings.rowPadding || '12px 16px',
                         borderRadius: settings.rowRadius || '8px',
+                        border: parseInt(settings.rowBorderWidth) > 0 ? `${settings.rowBorderWidth} solid ${settings.rowBorderColor}` : 'none',
                         boxShadow: settings.rowShadowEnabled ? `0px 4px 12px rgba(0,0,0,0.3)` : 'none',
                         height: settings.rowHeight !== 'auto' ? settings.rowHeight : undefined,
                         minHeight: settings.rowHeight === 'auto' ? '40px' : undefined

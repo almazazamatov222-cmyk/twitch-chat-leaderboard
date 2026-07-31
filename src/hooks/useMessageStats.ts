@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { useSettingsStore } from '@/store/useSettingsStore';
 
 export interface UserMessageCount {
   id: string; // Twitch User ID
@@ -9,14 +8,12 @@ export interface UserMessageCount {
 }
 
 export function useMessageStats(sessionId: string | null, overlayToken?: string | null) {
-  const { settings } = useSettingsStore();
   const [users, setUsers] = useState<Record<string, UserMessageCount>>({});
   const [realtimeStatus, setRealtimeStatus] = useState<string>('INIT');
   const [statsError, setStatsError] = useState<string | null>(null);
   const [lastStatsFetchAt, setLastStatsFetchAt] = useState<string | null>(null);
   
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setUsers({});
   }, [sessionId]);
 
@@ -28,7 +25,6 @@ export function useMessageStats(sessionId: string | null, overlayToken?: string 
     let cancelled = false;
 
     if (!sessionId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRealtimeStatus('NO_SESSION');
       return;
     }
@@ -67,7 +63,7 @@ export function useMessageStats(sessionId: string | null, overlayToken?: string 
 
       if (data) {
         const map: Record<string, UserMessageCount> = {};
-        data.forEach((row: any) => {
+        data.forEach((row: { twitch_user_id: string; twitch_username: string; messages_count: number }) => {
           map[row.twitch_user_id] = {
             id: row.twitch_user_id,
             username: row.twitch_username,
@@ -81,8 +77,7 @@ export function useMessageStats(sessionId: string | null, overlayToken?: string 
     const startPolling = () => {
       if (isPolling.current) return;
       isPolling.current = true;
-      // We keep a 2-second resilient fallback polling (especially for OBS)
-      pollInterval = setInterval(fetchInitial, 2000);
+      pollInterval = setInterval(fetchInitial, 3000);
     };
 
     const stopPolling = () => {
@@ -90,36 +85,55 @@ export function useMessageStats(sessionId: string | null, overlayToken?: string 
       if (pollInterval) clearInterval(pollInterval);
     };
 
-    fetchInitial();
-    startPolling(); // Always run fallback polling
+    const init = async () => {
+      await fetchInitial();
+      if (cancelled) return;
 
-    subscription = supabase
-      .channel(`stats_${sessionId}_${crypto.randomUUID()}`)
-      .on('postgres_changes', {
-        event: '*', 
-        schema: 'public',
-        table: 'message_stats',
-        filter: `session_id=eq.${sessionId}`
-      }, (payload) => {
-        const newRow = payload.new as { twitch_user_id: string, twitch_username: string, messages_count: number };
-        if (!newRow.twitch_user_id) return;
-        
-        setUsers(prev => ({
-          ...prev,
-          [newRow.twitch_user_id]: {
-            id: newRow.twitch_user_id,
-            username: newRow.twitch_username,
-            count: newRow.messages_count
+      subscription = supabase
+        .channel(`stats_${sessionId}_${crypto.randomUUID()}`)
+        .on('postgres_changes', {
+          event: '*', 
+          schema: 'public',
+          table: 'message_stats',
+          filter: `session_id=eq.${sessionId}`
+        }, (payload) => {
+          if (cancelled) return;
+          
+          if (payload.eventType === 'DELETE') {
+            const oldRow = payload.old as { twitch_user_id: string };
+            if (oldRow && oldRow.twitch_user_id) {
+              setUsers(prev => {
+                const next = { ...prev };
+                delete next[oldRow.twitch_user_id];
+                return next;
+              });
+            }
+          } else {
+            const newRow = payload.new as { twitch_user_id: string, twitch_username: string, messages_count: number };
+            if (newRow && newRow.twitch_user_id) {
+              setUsers(prev => ({
+                ...prev,
+                [newRow.twitch_user_id]: {
+                  id: newRow.twitch_user_id,
+                  username: newRow.twitch_username,
+                  count: newRow.messages_count
+                }
+              }));
+            }
           }
-        }));
-      })
-      .subscribe((status, err) => {
-        if (cancelled) return;
-        setRealtimeStatus(status);
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          if (err) console.error('Realtime error in message_stats:', err);
-        }
-      });
+        })
+        .subscribe((status) => {
+          if (cancelled) return;
+          setRealtimeStatus(status);
+          if (status === 'SUBSCRIBED') {
+            stopPolling();
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            startPolling();
+          }
+        });
+    };
+
+    init();
 
     return () => {
       cancelled = true;
@@ -138,3 +152,4 @@ export function useMessageStats(sessionId: string | null, overlayToken?: string 
     lastStatsFetchAt
   };
 }
+

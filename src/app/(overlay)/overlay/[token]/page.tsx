@@ -33,26 +33,19 @@ function OverlayContent({ token }: { token: string }) {
   const [realtimeStatus, setRealtimeStatus] = useState<string>('INIT');
   const diag = useDiagnostics(twitchId || null);
 
-  useEffect(() => {
-    document.documentElement.classList.add('overlay-page');
-    document.body.classList.add('overlay-page');
-    return () => {
-      document.documentElement.classList.remove('overlay-page');
-      document.body.classList.remove('overlay-page');
-    };
-  }, []);
+
 
   useEffect(() => {
     setPreviewMode(isDemo ? 'demo' : 'real');
 
-    let settingsSub: any;
-    let sessionSub: any;
+    let settingsSub: ReturnType<typeof supabase.channel> | null = null;
+    let sessionSub: ReturnType<typeof supabase.channel> | null = null;
     let cancelled = false;
-    let pollInterval: any;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
     let isPolling = false;
     let currentUserId: string | null = null;
 
-    const mapSettings = (data: any) => {
+    const mapSettings = (data: Record<string, any>) => {
       const loadedSettings = { ...defaultSettings };
       const keys = Object.keys(defaultSettings) as Array<keyof OverlaySettings>;
       for (const key of keys) {
@@ -125,9 +118,9 @@ function OverlayContent({ token }: { token: string }) {
 
       settingsSub = supabase.channel(`settings_changes_${crypto.randomUUID()}`)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'settings', filter: `overlay_token=eq.${token}` }, (payload) => {
-          setAllSettings(mapSettings(payload.new));
+          setAllSettings(mapSettings(payload.new as Record<string, any>));
         })
-        .subscribe((status, err) => {
+        .subscribe((status) => {
           if (cancelled) return;
           if (status === 'SUBSCRIBED') stopPolling();
           else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') startPolling();
@@ -137,7 +130,7 @@ function OverlayContent({ token }: { token: string }) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions', filter: `user_id=eq.${currentUserId}` }, () => {
           fetchAll();
         })
-        .subscribe((status, err) => {
+        .subscribe((status) => {
           if (cancelled) return;
           if (status === 'SUBSCRIBED') stopPolling();
           else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') startPolling();
@@ -157,7 +150,17 @@ function OverlayContent({ token }: { token: string }) {
   if (loading) return null;
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-transparent">
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      width: '100vw',
+      height: '100vh',
+      minWidth: '100vw',
+      minHeight: '100vh',
+      overflow: 'hidden',
+      boxSizing: 'border-box',
+      background: 'transparent'
+    }}>
       <LivePreview 
         sessionId={sessionId} 
         overlayToken={token} 

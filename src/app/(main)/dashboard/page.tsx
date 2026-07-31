@@ -1,12 +1,10 @@
-/* eslint-disable */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { useSettingsStore, defaultSettings, OverlaySettings } from '@/store/useSettingsStore';
 import SettingsPanel from '@/components/SettingsPanel';
-import LivePreview from '@/components/LivePreview';
-import DiagnosticPanel from '@/components/DiagnosticPanel';
 import { useSession } from '@/hooks/useSession';
 import { useDiagnostics } from '@/hooks/useDiagnostics';
 
@@ -15,6 +13,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [overlayToken, setOverlayToken] = useState<string>('');
   const [twitchUsername, setTwitchUsername] = useState<string>('');
+  const router = useRouter();
+  const [iframeKey, setIframeKey] = useState(Date.now());
   
   const setAllSettings = useSettingsStore(state => state.setAllSettings);
   const previewMode = useSettingsStore(state => state.previewMode);
@@ -45,7 +45,10 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchUserAndSettings = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        router.push('/auth');
+        return;
+      }
       setUser(user);
 
       // Fetch or create settings
@@ -99,7 +102,17 @@ export default function DashboardPage() {
     };
 
     fetchUserAndSettings();
-  }, [setAllSettings]);
+  }, [setAllSettings, router]);
+
+  // Refresh iframe when settings change
+  const prevSettingsRef = useRef<string>('');
+  useEffect(() => {
+    const settingsStr = JSON.stringify(useSettingsStore.getState().settings);
+    if (prevSettingsRef.current !== settingsStr) {
+      prevSettingsRef.current = settingsStr;
+      setIframeKey(Date.now());
+    }
+  }, [useSettingsStore.getState().settings]);
 
   if (loading) return <div className="flex h-screen items-center justify-center text-white bg-gray-950">Загрузка...</div>;
 
@@ -163,7 +176,17 @@ export default function DashboardPage() {
                <div className="w-[500px] h-[800px] origin-top relative outline-dashed outline-1 outline-gray-500/30" style={{
                  transform: 'scale(min(100cqi / 500, 1))'
                }}>
-                 <LivePreview sessionId={activeSession?.id ?? null} onRealtimeStatusChange={setRealtimeStatus} />
+                 {overlayToken ? (
+                   <iframe 
+                     key={iframeKey}
+                     src={`/overlay/${overlayToken}?demo=${previewMode === 'demo'}`} 
+                     className="w-full h-full border-0 block pointer-events-none"
+                   />
+                 ) : (
+                   <div className="w-full h-full flex items-center justify-center text-gray-500">
+                     Инициализация оверлея...
+                   </div>
+                 )}
                </div>
              </div>
           </div>

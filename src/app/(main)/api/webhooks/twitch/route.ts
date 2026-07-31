@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
@@ -175,3 +176,4 @@ export async function POST(req: Request) {
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
+

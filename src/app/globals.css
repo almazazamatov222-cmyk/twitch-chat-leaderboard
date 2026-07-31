@@ -25,10 +25,4 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-html.overlay-page,
-html.overlay-page body {
-  margin: 0;
-  background: transparent !important;
-  background-color: transparent !important;
-  overflow: hidden;
-}
+

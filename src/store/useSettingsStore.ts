@@ -89,6 +89,8 @@ export interface OverlaySettings {
   backgroundBlur: string;
   backgroundOverlayOpacity: number;
   overlayRadius: string;
+  overlayBorderColor: string;
+  overlayBorderWidth: string;
 
   // Animation
   animationType: string;
@@ -134,7 +136,7 @@ export const defaultSettings: OverlaySettings = {
   
   top3HighlightEnabled: true, top1Color: '#ffd700', top2Color: '#c0c0c0', top3Color: '#cd7f32',
 
-  backgroundMode: 'transparent', backgroundColor: '#000000', backgroundOpacity: 1, backgroundImagePath: '', backgroundImageFit: 'cover', backgroundImagePosition: 'center', backgroundImageOpacity: 1, backgroundBlur: '0px', backgroundOverlayOpacity: 0, overlayRadius: '0px',
+  backgroundMode: 'transparent', backgroundColor: '#000000', backgroundOpacity: 1, backgroundImagePath: '', backgroundImageFit: 'cover', backgroundImagePosition: 'center', backgroundImageOpacity: 1, backgroundBlur: '0px', backgroundOverlayOpacity: 0, overlayRadius: '0px', overlayBorderColor: 'transparent', overlayBorderWidth: '0px',
 
   animationType: 'fade', animationDuration: 0.3, rankAnimationEnabled: true, counterAnimation: 'none', highlightNew: true, highlightColor: 'rgba(255,255,255,0.2)', highlightDuration: 1
 };

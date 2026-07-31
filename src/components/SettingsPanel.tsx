@@ -91,8 +91,9 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
   // Debounce all settings to trigger save
   const debouncedSettings = useDebounce(settings, 600);
 
+  const [urlVersion] = useState(Math.random().toString(36).substring(7));
   const overlayUrl = typeof window !== 'undefined' 
-    ? `${window.location.origin}/overlay/${overlayToken}` 
+    ? `${window.location.origin}/overlay/${overlayToken}?v=${urlVersion}` 
     : '';
 
   const copyToClipboard = async () => {
@@ -392,7 +393,7 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
 
                  <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-800">
                     <div className="space-y-1">
-                      <label className="text-xs text-gray-400">Цвет рамки</label>
+                      <label className="text-xs text-gray-400">Цвет рамки строк</label>
                       <input 
                         type="color" 
                         value={parseRgba(settings.rowBorderColor).hex} 
@@ -408,13 +409,42 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
                           onChange={(e) => updateSettings({ rowBorderWidth: e.target.checked ? '1px' : '0px' })}
                           className="accent-[#9146FF]"
                         />
-                        Включить рамку
+                        Рамка строк
                       </label>
                     </div>
                     {parseInt(settings.rowBorderWidth) > 0 && (
                       <div className="space-y-1 col-span-2">
-                        <label className="text-xs text-gray-400">Толщина (px)</label>
+                        <label className="text-xs text-gray-400">Толщина рамки строк (px)</label>
                         <input type="number" min="1" value={parseInt(settings.rowBorderWidth) || 1} onChange={(e) => updateSettings({ rowBorderWidth: `${e.target.value}px` })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
+                      </div>
+                    )}
+                 </div>
+
+                 <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-800">
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-400">Цвет рамки оверлея (OBS)</label>
+                      <input 
+                        type="color" 
+                        value={parseRgba(settings.overlayBorderColor).hex} 
+                        onChange={(e) => updateSettings({ overlayBorderColor: hexToRgba(e.target.value, 1) })} 
+                        className="w-full h-8 rounded border-0 p-0 cursor-pointer" 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-400 flex items-center gap-2">
+                        <input 
+                          type="checkbox" 
+                          checked={parseInt(settings.overlayBorderWidth) > 0}
+                          onChange={(e) => updateSettings({ overlayBorderWidth: e.target.checked ? '1px' : '0px' })}
+                          className="accent-[#9146FF]"
+                        />
+                        Рамка оверлея
+                      </label>
+                    </div>
+                    {parseInt(settings.overlayBorderWidth) > 0 && (
+                      <div className="space-y-1 col-span-2">
+                        <label className="text-xs text-gray-400">Толщина рамки оверлея (px)</label>
+                        <input type="number" min="1" value={parseInt(settings.overlayBorderWidth) || 1} onChange={(e) => updateSettings({ overlayBorderWidth: `${e.target.value}px` })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
                       </div>
                     )}
                  </div>
