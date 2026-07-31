@@ -7,7 +7,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { FONT_CATEGORIES } from '@/lib/fonts';
 import { supabase } from '@/lib/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
-import { opacityFromTransparency } from '@/lib/overlayLayout';
+import {
+  getBackgroundModeForColor,
+  opacityFromTransparency,
+} from '@/lib/overlayLayout';
 
 interface AccordionHeaderProps {
   id: string;
@@ -262,6 +265,28 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
                 </p>
               </div>
 
+              <div className="space-y-2 pt-4 border-t border-gray-800">
+                <label className="text-xs text-gray-400">
+                  Дополнительные боты (через запятую)
+                </label>
+                <input
+                  type="text"
+                  value={settings.botUsers.join(', ')}
+                  onChange={(e) => updateSettings({
+                    botUsers: e.target.value
+                      .split(',')
+                      .map((username) => username.trim())
+                      .filter(Boolean),
+                  })}
+                  placeholder="например: mycustombot, anotherbot"
+                  className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm focus:border-[#9146FF] outline-none"
+                />
+                <p className="text-[11px] leading-relaxed text-gray-500">
+                  Nightbot, StreamElements, WizeBot и другие популярные боты уже
+                  исключаются автоматически.
+                </p>
+              </div>
+
               <div className="pt-4 border-t border-gray-800">
                 {twitchStatusLoading && !twitchStatus ? (
                   <div className="text-sm text-gray-400">Проверяем подключение Twitch...</div>
@@ -377,8 +402,8 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
                    <div className="space-y-1">
                      <label className="text-xs text-gray-400">Цвет фона</label>
                      <div className="flex gap-2">
-                       <input type="color" value={settings.backgroundColor.slice(0, 7)} onChange={(e) => updateSettings({ backgroundColor: e.target.value })} className="w-8 h-8 rounded border-0 p-0 cursor-pointer" />
-                       <input type="text" value={settings.backgroundColor} onChange={(e) => updateSettings({ backgroundColor: e.target.value })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 text-sm" />
+                       <input type="color" value={settings.backgroundColor.slice(0, 7)} onChange={(e) => updateSettings({ backgroundColor: e.target.value, backgroundMode: 'color' })} className="w-8 h-8 rounded border-0 p-0 cursor-pointer" />
+                       <input type="text" value={settings.backgroundColor} onChange={(e) => updateSettings({ backgroundColor: e.target.value, backgroundMode: getBackgroundModeForColor(e.target.value) })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 text-sm" />
                      </div>
                    </div>
                    <div className="space-y-1">
@@ -389,7 +414,10 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
                        max="1" 
                        step="0.05" 
                        value={1 - settings.backgroundOpacity} 
-                       onChange={(e) => updateSettings({ backgroundOpacity: 1 - Number(e.target.value) })} 
+                       onChange={(e) => updateSettings({
+                         backgroundOpacity: opacityFromTransparency(Number(e.target.value)),
+                         backgroundMode: getBackgroundModeForColor(settings.backgroundColor),
+                       })}
                        className="w-full accent-[#9146FF] h-8" 
                      />
                    </div>
@@ -401,7 +429,12 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
                       <input 
                         type="text" 
                         value={settings.backgroundImagePath} 
-                        onChange={(e) => updateSettings({ backgroundImagePath: e.target.value })} 
+                        onChange={(e) => updateSettings({
+                          backgroundImagePath: e.target.value,
+                          backgroundMode: e.target.value.trim()
+                            ? 'image'
+                            : getBackgroundModeForColor(settings.backgroundColor),
+                        })}
                         placeholder="https://..." 
                         className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm"
                       />

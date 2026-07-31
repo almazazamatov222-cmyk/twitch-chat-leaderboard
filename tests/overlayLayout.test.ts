@@ -4,6 +4,8 @@ import test from 'node:test';
 import {
   calculateLeaderboardLayout,
   colorWithOpacity,
+  getBackgroundModeForColor,
+  getOverlayFrameStyle,
   getVisibleOverlayBorderWidth,
   getVisibleOverlayBorderColor,
   opacityFromTransparency,
@@ -79,4 +81,17 @@ test('uses a visible fallback for an enabled transparent overlay border', () => 
   assert.equal(getVisibleOverlayBorderColor('transparent', 2), '#ff0000');
   assert.equal(getVisibleOverlayBorderColor('#00ff00', 2), '#00ff00');
   assert.equal(getVisibleOverlayBorderColor('transparent', 0), 'transparent');
+});
+
+test('activates a colored background when a color is selected', () => {
+  assert.equal(getBackgroundModeForColor('#ff0000'), 'color');
+  assert.equal(getBackgroundModeForColor('transparent'), 'transparent');
+});
+
+test('renders the overlay frame against the viewport above all content', () => {
+  const style = getOverlayFrameStyle('20px', '#ff0000', '0px');
+  assert.equal(style.position, 'fixed');
+  assert.equal(style.inset, 0);
+  assert.equal(style.border, '20px solid #ff0000');
+  assert.equal(style.zIndex, 2147483647);
 });

@@ -10,6 +10,7 @@ export interface OverlaySettings {
   elementShowCount: boolean;
   ignoreCommands: boolean;
   ignoreStreamer: boolean;
+  botUsers: string[];
   minMessageLength: number;
   
   // Title Text
@@ -122,6 +123,7 @@ export const defaultSettings: OverlaySettings = {
   elementShowCount: true,
   ignoreCommands: false,
   ignoreStreamer: false,
+  botUsers: [],
   minMessageLength: 1,
 
   titleFont: 'Inter', titleSize: '24px', titleWeight: 'bold', titleColor: '#ffffff', titleStrokeWidth: '0px', titleStrokeColor: 'transparent', titleShadowColor: 'rgba(0,0,0,0.5)', titleShadowOpacity: 1, titleOpacity: 1, titleLetterSpacing: 'normal',

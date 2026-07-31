@@ -34,6 +34,33 @@ export function opacityFromTransparency(value: number): number {
   return 1 - Math.min(1, Math.max(0, value));
 }
 
+export function getBackgroundModeForColor(
+  value: string,
+): 'transparent' | 'color' {
+  return value.trim().toLowerCase() === 'transparent' ? 'transparent' : 'color';
+}
+
+export function getOverlayFrameStyle(
+  widthValue: string,
+  colorValue: string,
+  radius: string,
+) {
+  const width = getVisibleOverlayBorderWidth(widthValue);
+  const color = getVisibleOverlayBorderColor(colorValue, width);
+
+  return {
+    position: 'fixed' as const,
+    inset: 0,
+    width: '100vw',
+    height: '100vh',
+    border: width > 0 ? `${width}px solid ${color}` : 'none',
+    borderRadius: radius || '0px',
+    boxSizing: 'border-box' as const,
+    pointerEvents: 'none' as const,
+    zIndex: 2147483647,
+  };
+}
+
 export function colorWithOpacity(color: string, opacity: number): string {
   const alpha = Math.min(1, Math.max(0, opacity));
   const normalized = color.trim();

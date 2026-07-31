@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 
 import LivePreview from '@/components/LivePreview';
+import { getOverlayFrameStyle } from '@/lib/overlayLayout';
 import { mapSettingsRow } from '@/lib/settingsMapper';
 import { supabase } from '@/lib/supabase/client';
 import { OBS_STATS_SYNC } from '@/lib/realtimeSync';
@@ -37,6 +38,13 @@ function OverlayContent({ token }: { token: string }) {
 
   const setAllSettings = useSettingsStore((state) => state.setAllSettings);
   const setPreviewMode = useSettingsStore((state) => state.setPreviewMode);
+  const overlayBorderWidth = useSettingsStore(
+    (state) => state.settings.overlayBorderWidth,
+  );
+  const overlayBorderColor = useSettingsStore(
+    (state) => state.settings.overlayBorderColor,
+  );
+  const overlayRadius = useSettingsStore((state) => state.settings.overlayRadius);
 
   useEffect(() => {
     let cancelled = false;
@@ -114,6 +122,15 @@ function OverlayContent({ token }: { token: string }) {
         overlayToken={token}
         onRealtimeStatusChange={setRealtimeStatus}
         onStatsDebug={setStatsDebug}
+      />
+
+      <div
+        aria-hidden="true"
+        style={getOverlayFrameStyle(
+          overlayBorderWidth,
+          overlayBorderColor,
+          overlayRadius,
+        )}
       />
 
       {showDebug && (

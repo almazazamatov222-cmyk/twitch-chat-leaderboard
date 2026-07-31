@@ -8,6 +8,10 @@ import {
   getServiceClient,
   syncCurrentStream,
 } from '@/lib/twitchEventSub.server';
+import {
+  getChatMessageFilterReason,
+  type TwitchChatBadge,
+} from '@/lib/chatMessageFilter';
 
 const TWITCH_WEBHOOK_SECRET = process.env.TWITCH_WEBHOOK_SECRET ?? '';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
@@ -37,6 +41,7 @@ interface EventSubBody {
     message?: {
       text?: string;
     };
+    badges?: TwitchChatBadge[];
   };
 }
 
@@ -157,7 +162,7 @@ export async function POST(request: Request) {
 
     const { data: settings, error: settingsError } = await service
       .from('settings')
-      .select('user_id')
+      .select('user_id, bot_users')
       .eq('twitch_id', twitchId)
       .single();
 
@@ -199,6 +204,21 @@ export async function POST(request: Request) {
 
     if (!chatMessageId || !chatterId || !chatterUsername) {
       throw new Error('Chat event is missing message or chatter fields');
+    }
+
+    const filterReason = getChatMessageFilterReason({
+      broadcasterUserId: twitchId,
+      chatterUserId: chatterId,
+      chatterUsername: event.chatter_user_login ?? chatterUsername,
+      messageText: event.message?.text,
+      badges: event.badges,
+      additionalBotUsernames: Array.isArray(settings.bot_users)
+        ? settings.bot_users
+        : [],
+    });
+
+    if (filterReason) {
+      return new NextResponse(`OK (Filtered: ${filterReason})`, { status: 200 });
     }
 
     await updateDiagnostic(twitchId, {

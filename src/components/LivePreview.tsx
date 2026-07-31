@@ -8,8 +8,6 @@ import { useEffect, useState } from 'react';
 import {
   calculateLeaderboardLayout,
   colorWithOpacity,
-  getVisibleOverlayBorderColor,
-  getVisibleOverlayBorderWidth,
   scalePixelValue,
 } from '@/lib/overlayLayout';
 
@@ -130,13 +128,6 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
     rowHeight: settings.rowHeight,
     rowGap: settings.rowGap,
   });
-  const overlayBorderWidth = getVisibleOverlayBorderWidth(
-    settings.overlayBorderWidth,
-  );
-  const overlayBorderColor = getVisibleOverlayBorderColor(
-    settings.overlayBorderColor,
-    overlayBorderWidth,
-  );
 
   const hexToRgba = (hex: string, opacity: number) => {
     if (!hex || hex === 'transparent') return 'transparent';
@@ -230,7 +221,10 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
       className="w-full h-full relative overflow-hidden box-border"
       style={{
         borderRadius: settings.overlayRadius || '0px',
-        backgroundColor: settings.backgroundMode === 'color' ? hexToRgba(settings.backgroundColor, settings.backgroundOpacity) : 'transparent',
+        backgroundColor:
+          settings.backgroundMode === 'color'
+            ? colorWithOpacity(settings.backgroundColor, settings.backgroundOpacity)
+            : 'transparent',
       }}
     >
       {/* Absolute Full-Screen Background Layer */}
@@ -387,18 +381,6 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
         </div>
       </div>
       </div>
-      {overlayBorderWidth > 0 && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-50"
-          style={{
-            borderRadius: settings.overlayRadius || '0px',
-            border: `${overlayBorderWidth}px solid ${overlayBorderColor}`,
-            boxSizing: 'border-box',
-            zIndex: 9999,
-          }}
-        />
-      )}
     </div>
   );
 }
