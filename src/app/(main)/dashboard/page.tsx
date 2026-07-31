@@ -85,9 +85,9 @@ export default function DashboardPage() {
       {/* Правая панель - Предпросмотр 16:9 */}
       <div className="flex-1 relative flex flex-col">
         {/* Canvas Toolbar */}
-        <div className="h-12 border-b border-gray-800 bg-gray-900/50 flex items-center justify-between px-4 z-10 backdrop-blur-sm">
+        <div className="h-12 border-b border-gray-800 bg-gray-900 flex items-center justify-between px-4 z-10">
           <div className="flex items-center gap-2">
-             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+             <div className="w-2 h-2 rounded-full bg-green-500" />
              <span className="text-sm font-medium text-gray-300">Живой предпросмотр</span>
           </div>
           <div className="flex items-center">
@@ -114,22 +114,15 @@ export default function DashboardPage() {
           }}
         >
           {/* Container for OBS simulation */}
-          <div className="w-full max-w-[500px] min-h-[800px] h-max relative overflow-visible"
-               style={{ 
-                 containerType: 'size',
-               }}
-          >
+          <div className="w-[500px] min-h-[800px] relative">
              {previewMode === 'demo' && (
                <div className="absolute -top-12 left-0 right-0 flex justify-center z-50">
-                 <div className="bg-yellow-500/20 border border-yellow-500/50 text-yellow-500 px-4 py-1 rounded-full text-xs font-bold shadow-lg animate-pulse">
+                 <div className="bg-yellow-500/20 border border-yellow-500/50 text-yellow-500 px-4 py-1 rounded-full text-xs font-bold shadow-lg">
                    РЕЖИМ ДЕМО ДАННЫХ
                  </div>
                </div>
              )}
-             <div className="w-full h-full min-h-[800px] flex items-start justify-center">
-               <div className="w-[500px] h-[800px] origin-top relative outline-dashed outline-1 outline-gray-500/30" style={{
-                 transform: 'scale(min(100cqi / 500, 1))'
-               }}>
+             <div className="w-[500px] h-[800px] relative outline-dashed outline-1 outline-gray-500/30">
                  {overlayToken ? (
                    <iframe 
                      src={`/overlay/${overlayToken}?demo=${previewMode === 'demo'}`} 
@@ -140,7 +133,6 @@ export default function DashboardPage() {
                      Инициализация оверлея...
                    </div>
                  )}
-               </div>
              </div>
           </div>
         </div>

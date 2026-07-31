@@ -3,7 +3,7 @@
 import { useSettingsStore, OverlaySettings } from '@/store/useSettingsStore';
 import { Copy, Check, Monitor, RefreshCw, Type, Palette, Settings as SettingsIcon, Play, ChevronDown, ChevronUp, UploadCloud } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { FONT_CATEGORIES } from '@/lib/fonts';
 import { supabase } from '@/lib/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -47,6 +47,7 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [twitchStatus, setTwitchStatus] = useState<TwitchConnectionStatus | null>(null);
   const [twitchStatusLoading, setTwitchStatusLoading] = useState(false);
+  const schemaKeysRef = useRef<Set<string> | null>(null);
 
   useEffect(() => {
     if (!twitchId) return;
@@ -140,12 +141,18 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
         dbPayload[snakeKey] = currentSettings[key];
       }
       
-      // Fetch current schema to ONLY send valid columns
-      const { data: schemaData } = await supabase.from('settings').select('*').eq('overlay_token', overlayToken).single();
-      if (schemaData) {
-        const validKeys = Object.keys(schemaData);
+      // Cache the schema once instead of downloading the whole row on every save.
+      if (!schemaKeysRef.current) {
+        const { data: schemaData } = await supabase
+          .from('settings')
+          .select('*')
+          .eq('overlay_token', overlayToken)
+          .single();
+        if (schemaData) schemaKeysRef.current = new Set(Object.keys(schemaData));
+      }
+      if (schemaKeysRef.current) {
         for (const key of Object.keys(dbPayload)) {
-          if (!validKeys.includes(key)) {
+          if (!schemaKeysRef.current.has(key)) {
             delete dbPayload[key];
           }
         }

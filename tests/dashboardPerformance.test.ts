@@ -34,3 +34,7 @@ test('removes the custom bot settings block', () => {
 test('does not run the demo animation loop while the stream is offline', () => {
   assert.doesNotMatch(livePreviewSource, /previewMode === 'demo' \|\| !sessionId/);
 });
+
+test('does not use cyclic container-query scaling or idle GPU animations', () => {
+  assert.doesNotMatch(dashboardSource, /containerType|cqi|backdrop-blur|animate-pulse/);
+});
