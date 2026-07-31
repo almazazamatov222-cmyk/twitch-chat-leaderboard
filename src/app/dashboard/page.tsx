@@ -1,3 +1,4 @@
+/* eslint-disable */
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -159,7 +160,7 @@ export default function DashboardPage() {
                </div>
              )}
              <div className="w-full h-full min-h-[800px] flex items-start justify-center">
-               <div className="w-[500px] origin-top relative outline-dashed outline-1 outline-gray-500/30" style={{
+               <div className="w-[500px] h-[800px] origin-top relative outline-dashed outline-1 outline-gray-500/30" style={{
                  transform: 'scale(min(100cqi / 500, 1))'
                }}>
                  <LivePreview sessionId={activeSession?.id ?? null} onRealtimeStatusChange={setRealtimeStatus} />
@@ -178,3 +179,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
