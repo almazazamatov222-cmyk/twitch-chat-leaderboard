@@ -1,35 +1,31 @@
 'use client';
 
 import { useSettingsStore } from '@/store/useSettingsStore';
-import { motion, AnimatePresence, animate } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { useMessageStats } from '@/hooks/useMessageStats';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
 function AnimatedCounter({ value, animationType, highlightColor, normalColor, textStyle, className }: any) {
-  const nodeRef = useRef<HTMLSpanElement>(null);
-  const prevValue = useRef(value);
+  const motionValue = useMotionValue(value);
+  const springValue = useSpring(motionValue, {
+    damping: 30,
+    stiffness: 200,
+    mass: 1
+  });
 
   useEffect(() => {
-    if (animationType !== 'smooth') return;
-    const from = prevValue.current;
-    const to = value;
-    const controls = animate(from, to, {
-      duration: 0.5,
-      onUpdate(v) {
-        if (nodeRef.current) {
-          nodeRef.current.textContent = Math.round(v).toLocaleString('ru-RU');
-        }
-      }
-    });
-    prevValue.current = value;
-    return () => controls.stop();
-  }, [value, animationType]);
+    if (animationType === 'smooth') {
+      motionValue.set(value);
+    }
+  }, [value, animationType, motionValue]);
+
+  const displayValue = useTransform(springValue, (v) => Math.round(Number(v)).toLocaleString('ru-RU'));
 
   if (animationType === 'smooth') {
     return (
-      <span ref={nodeRef} className={className} style={textStyle}>
-        {value.toLocaleString('ru-RU')}
-      </span>
+      <motion.span className={className} style={textStyle}>
+        {displayValue}
+      </motion.span>
     );
   }
 
