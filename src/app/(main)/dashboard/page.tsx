@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase/client';
 import { useSettingsStore, defaultSettings, OverlaySettings } from '@/store/useSettingsStore';
 import SettingsPanel from '@/components/SettingsPanel';
 import { useSession } from '@/hooks/useSession';
+import DiagnosticPanel from '@/components/DiagnosticPanel';
 import { useDiagnostics } from '@/hooks/useDiagnostics';
 
 export default function DashboardPage() {
