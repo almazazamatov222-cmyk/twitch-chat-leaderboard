@@ -202,10 +202,17 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
   const variants = getVariants();
 
   return (
-    <>
+    <div 
+      className="w-full h-full relative overflow-hidden box-border"
+      style={{
+        border: parseInt(settings.rowBorderWidth) > 0 ? `${settings.rowBorderWidth} solid ${settings.rowBorderColor}` : 'none',
+        borderRadius: settings.overlayRadius || '0px',
+        backgroundColor: settings.backgroundMode === 'color' ? hexToRgba(settings.backgroundColor, settings.backgroundOpacity) : 'transparent',
+      }}
+    >
       {/* Absolute Full-Screen Background Layer */}
       {settings.backgroundMode === 'image' && settings.backgroundImagePath && (
-        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 z-0 pointer-events-none">
           <img 
             src={settings.backgroundImagePath} 
             alt="bg"
@@ -220,14 +227,7 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
           />
         </div>
       )}
-      {settings.backgroundMode === 'color' && settings.backgroundColor && (
-        <div 
-          className="absolute inset-0 z-0 pointer-events-none" 
-          style={{ 
-            backgroundColor: hexToRgba(settings.backgroundColor, settings.backgroundOpacity) 
-          }} 
-        />
-      )}
+
       {/* Background Overlay (dimming) */}
       {(settings.backgroundMode === 'image' && settings.backgroundOverlayOpacity > 0) && (
         <div 
@@ -242,9 +242,7 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
           className="flex flex-col box-border relative overflow-hidden"
           style={{ 
             width: settings.rowWidth,
-            border: parseInt(settings.rowBorderWidth) > 0 ? `${settings.rowBorderWidth} solid ${settings.rowBorderColor}` : 'none',
-            borderRadius: settings.overlayRadius || '0px',
-            padding: '40px 32px 32px 32px', // Base padding for the container
+            padding: '40px 32px 32px 32px', // Base padding for the content
             height: 'fit-content' // Just wrap the content
           }}
         >
@@ -332,7 +330,7 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
         </div>
       </div>
       </div>
-    </>
+    </div>
   );
 }
 
