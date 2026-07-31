@@ -331,7 +331,8 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
