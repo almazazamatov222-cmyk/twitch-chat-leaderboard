@@ -21,7 +21,10 @@ export default function HistoryPage() {
   useEffect(() => {
     const fetchHistory = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
       const { data } = await supabase
         .from('sessions')

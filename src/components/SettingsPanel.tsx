@@ -1,13 +1,27 @@
 'use client';
 
 import { useSettingsStore, OverlaySettings } from '@/store/useSettingsStore';
-import { Copy, Check, Save, Monitor, RefreshCw, Type, LayoutTemplate, Palette, Filter, Settings as SettingsIcon, Play, Square, List, ChevronDown, ChevronUp, Image as ImageIcon, Video, UploadCloud } from 'lucide-react';
+import { Copy, Check, Monitor, RefreshCw, Type, Palette, Settings as SettingsIcon, Play, ChevronDown, ChevronUp, UploadCloud } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import { FONT_CATEGORIES } from '@/lib/fonts';
 import { supabase } from '@/lib/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
 
-function AccordionHeader({ id, label, icon: Icon, activeSection, onToggle }: any) {
+interface AccordionHeaderProps {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  activeSection: string;
+  onToggle: (id: string) => void;
+}
+
+interface TwitchConnectionStatus {
+  status?: string;
+  error?: string | null;
+}
+
+function AccordionHeader({ id, label, icon: Icon, activeSection, onToggle }: AccordionHeaderProps) {
   return (
     <button 
       onClick={() => onToggle(id)}
@@ -23,11 +37,11 @@ function AccordionHeader({ id, label, icon: Icon, activeSection, onToggle }: any
 }
 
 export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken: string, twitchId?: string | null }) {
-  const { settings, updateSettings, previewMode, setPreviewMode } = useSettingsStore();
+  const { settings, updateSettings } = useSettingsStore();
   const [copied, setCopied] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('main');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [twitchStatus, setTwitchStatus] = useState<any>(null);
+  const [twitchStatus, setTwitchStatus] = useState<TwitchConnectionStatus | null>(null);
   const [twitchStatusLoading, setTwitchStatusLoading] = useState(false);
 
   useEffect(() => {
@@ -41,7 +55,7 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
         const res = await fetch(`/api/twitch/subscription-status?twitchId=${twitchId}`);
         const data = await res.json();
         if (data.success && isMounted) {
-          setTwitchStatus((prev: any) => ({
+          setTwitchStatus((prev) => ({
             ...prev,
             status: data.status,
             error: data.error
@@ -61,11 +75,15 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'webhook_diagnostics', filter: `twitch_id=eq.${twitchId}` },
-        (payload: any) => {
+        (payload) => {
           if (isMounted && payload.new) {
+            const diagnostic = payload.new as Record<string, unknown>;
             setTwitchStatus({
-              status: payload.new.subscription_status,
-              error: payload.new.last_webhook_error
+              status:
+                typeof diagnostic.subscription_status === 'string'
+                  ? diagnostic.subscription_status
+                  : 'unknown',
+              error: typeof diagnostic.last_webhook_error === 'string' ? diagnostic.last_webhook_error : null,
             });
           }
         }
@@ -73,8 +91,8 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
 
     // Polling logic
     pollInterval = setInterval(() => {
-      setTwitchStatus((currentStatus: any) => {
-        if (!currentStatus || ['missing', 'unknown', 'verification_received', 'pending', 'webhook_callback_verification_pending'].includes(currentStatus.status)) {
+      setTwitchStatus((currentStatus) => {
+        if (!currentStatus?.status || ['missing', 'unknown', 'verification_received', 'pending', 'webhook_callback_verification_pending'].includes(currentStatus.status)) {
           checkStatus();
         }
         return currentStatus;
@@ -91,7 +109,7 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
   // Debounce all settings to trigger save
   const debouncedSettings = useDebounce(settings, 600);
 
-  const [urlVersion] = useState(Math.random().toString(36).substring(7));
+  const [urlVersion] = useState('obs');
   const overlayUrl = typeof window !== 'undefined' 
     ? `${window.location.origin}/overlay/${overlayToken}?v=${urlVersion}` 
     : '';
@@ -111,7 +129,7 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
     setSaveStatus('saving');
     try {
       // Map back to snake_case
-      const dbPayload: any = {};
+      const dbPayload: Record<string, unknown> = {};
       const keys = Object.keys(currentSettings) as Array<keyof OverlaySettings>;
       for (const key of keys) {
         const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
@@ -529,7 +547,7 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
 
 // Extract complex sub-sections to components for readability
 
-function TextSection({ settings, updateSettings }: { settings: any, updateSettings: (val: any) => void }) {
+function TextSection({ settings, updateSettings }: { settings: OverlaySettings, updateSettings: (value: Partial<OverlaySettings>) => void }) {
   return (
     <div className="p-4 space-y-4 bg-gray-950 border-b border-gray-800">
       <div className="space-y-1">

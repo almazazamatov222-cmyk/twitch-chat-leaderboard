@@ -1,44 +1,48 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
-import { useSettingsStore, defaultSettings, OverlaySettings } from '@/store/useSettingsStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { mapSettingsRow } from '@/lib/settingsMapper';
 import SettingsPanel from '@/components/SettingsPanel';
 import { useSession } from '@/hooks/useSession';
 import DiagnosticPanel from '@/components/DiagnosticPanel';
 import { useDiagnostics } from '@/hooks/useDiagnostics';
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [overlayToken, setOverlayToken] = useState<string>('');
   const [twitchUsername, setTwitchUsername] = useState<string>('');
   const router = useRouter();
-  const [iframeKey, setIframeKey] = useState(Date.now());
   
   const setAllSettings = useSettingsStore(state => state.setAllSettings);
   const previewMode = useSettingsStore(state => state.previewMode);
   const setPreviewMode = useSettingsStore(state => state.setPreviewMode);
   
   const { activeSession } = useSession();
-  const [realtimeStatus, setRealtimeStatus] = useState<string>('INIT');
+  const realtimeStatus = 'POLLING';
 
   const diag = useDiagnostics(user?.user_metadata?.provider_id || null);
 
   useEffect(() => {
-    if (user?.user_metadata?.provider_id) {
+    if (user?.user_metadata?.provider_id && overlayToken) {
       // Create/verify EventSub subscription on Dashboard load
-      fetch('/api/twitch/subscribe', {
+      void fetch('/api/twitch/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           twitchId: user.user_metadata.provider_id,
-          userId: user.id
         })
+      }).then(async (response) => {
+        if (response.ok) return;
+        const body = await response.json() as { error?: string };
+        throw new Error(body.error ?? 'Failed to subscribe');
       }).catch(err => console.error('Failed to subscribe:', err));
     }
-  }, [user]);
+  }, [overlayToken, user]);
 
   // 16:9 Canvas Background modes
   const [canvasBg, setCanvasBg] = useState<'grid' | 'light' | 'dark' | 'game'>('grid');
@@ -53,11 +57,13 @@ export default function DashboardPage() {
       setUser(user);
 
       // Fetch or create settings
-      let { data, error } = await supabase
+      const settingsResult = await supabase
         .from('settings')
         .select('*')
         .eq('user_id', user.id)
         .single();
+      let data = settingsResult.data;
+      const error = settingsResult.error;
 
       if (!data && error?.code === 'PGRST116') {
         const res = await supabase.from('settings').insert({ 
@@ -72,32 +78,7 @@ export default function DashboardPage() {
         setOverlayToken(data.overlay_token);
         setTwitchUsername(data.twitch_username);
         
-        // Map database fields to store settings
-        const loadedSettings = { ...defaultSettings };
-        
-        // We do a smart mapping
-        const keys = Object.keys(defaultSettings) as Array<keyof OverlaySettings>;
-        for (const key of keys) {
-          // camelCase to snake_case mapping for DB lookup
-          const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
-          if (data[snakeKey] !== undefined && data[snakeKey] !== null) {
-            (loadedSettings as any)[key] = data[snakeKey];
-          }
-        }
-        
-        // Manual fallbacks for legacy data mappings
-        let rawRowColor = data.row_background || defaultSettings.rowColor;
-        // If legacy value is rgba, extract just the hex part
-        if (rawRowColor.startsWith('rgba')) {
-          const match = rawRowColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-          if (match) {
-            rawRowColor = '#' + [match[1], match[2], match[3]].map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
-          }
-        }
-        loadedSettings.rowColor = rawRowColor;
-        loadedSettings.rowGap = data.row_gap ?? defaultSettings.rowGap;
-
-        setAllSettings(loadedSettings);
+        setAllSettings(mapSettingsRow(data as Record<string, unknown>));
       }
       setLoading(false);
     };
@@ -105,15 +86,6 @@ export default function DashboardPage() {
     fetchUserAndSettings();
   }, [setAllSettings, router]);
 
-  // Refresh iframe when settings change
-  const prevSettingsRef = useRef<string>('');
-  useEffect(() => {
-    const settingsStr = JSON.stringify(useSettingsStore.getState().settings);
-    if (prevSettingsRef.current !== settingsStr) {
-      prevSettingsRef.current = settingsStr;
-      setIframeKey(Date.now());
-    }
-  }, [useSettingsStore.getState().settings]);
 
   if (loading) return <div className="flex h-screen items-center justify-center text-white bg-gray-950">Загрузка...</div>;
 
@@ -179,7 +151,6 @@ export default function DashboardPage() {
                }}>
                  {overlayToken ? (
                    <iframe 
-                     key={iframeKey}
                      src={`/overlay/${overlayToken}?demo=${previewMode === 'demo'}`} 
                      className="w-full h-full border-0 block pointer-events-none"
                    />

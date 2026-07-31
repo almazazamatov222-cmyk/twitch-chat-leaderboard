@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-page-custom-font */
 import type { Metadata } from "next";
 import "../globals.css";
 
@@ -12,7 +13,7 @@ export default function OverlayLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" style={{ background: 'transparent', margin: 0, padding: 0 }}>
+    <html lang="ru" style={{ background: 'transparent', margin: 0, padding: 0 }}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

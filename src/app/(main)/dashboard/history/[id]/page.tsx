@@ -3,17 +3,40 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { ArrowLeft, Download } from 'lucide-react';
 
-export default function SessionDetailsPage({ params }: { params: { id: string } }) {
-  const [stats, setStats] = useState<any[]>([]);
-  const [session, setSession] = useState<any>(null);
+interface Session {
+  id: string;
+  started_at: string;
+  ended_at: string | null;
+  status: string;
+  total_messages: number;
+  stream_title: string | null;
+  category_name: string | null;
+}
+
+interface MessageStat {
+  id: string;
+  twitch_user_id: string;
+  twitch_username: string;
+  messages_count: number;
+  last_message_at: string;
+}
+
+export default function SessionDetailsPage() {
+  const params = useParams<{ id: string }>();
+  const [stats, setStats] = useState<MessageStat[]>([]);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDetails = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
       const { data: sessionData } = await supabase
         .from('sessions')
@@ -41,7 +64,7 @@ export default function SessionDetailsPage({ params }: { params: { id: string } 
   }, [params.id]);
 
   const exportCSV = () => {
-    if (!stats.length) return;
+    if (!stats.length || !session) return;
     
     const headers = ['Twitch User ID', 'Username', 'Messages Count', 'Last Message At'];
     const rows = stats.map(s => [
@@ -64,7 +87,7 @@ export default function SessionDetailsPage({ params }: { params: { id: string } 
   };
 
   const exportJSON = () => {
-    if (!stats.length) return;
+    if (!stats.length || !session) return;
     
     const blob = new Blob([JSON.stringify(stats, null, 2)], { type: 'application/json' });
     const link = document.createElement('a');
