@@ -201,15 +201,16 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
   const variants = getVariants();
 
   return (
-    <div className="w-full min-h-screen flex items-start justify-center pt-10 relative">
+    <div className="w-full min-h-screen flex items-start justify-center relative">
       <div 
         className="flex flex-col box-border relative overflow-hidden"
         style={{ 
           width: settings.rowWidth,
+          minHeight: '100vh',
           backgroundColor: settings.backgroundMode === 'transparent' ? 'transparent' : hexToRgba(settings.backgroundColor, settings.backgroundOpacity),
           border: parseInt(settings.rowBorderWidth) > 0 ? `${settings.rowBorderWidth} solid ${settings.rowBorderColor}` : 'none',
           borderRadius: settings.overlayRadius || '0px',
-          padding: '32px' // Base padding for the container
+          padding: '40px 32px 32px 32px' // Base padding for the container
         }}
       >
         {settings.backgroundMode === 'image' && settings.backgroundImagePath && (

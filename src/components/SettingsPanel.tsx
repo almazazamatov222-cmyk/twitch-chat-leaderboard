@@ -374,6 +374,20 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
                         <UploadCloud size={16} className="text-gray-300" />
                       </label>
                     </div>
+                    {settings.backgroundMode === 'image' && (
+                      <div className="space-y-1 mt-3 border-t border-gray-800 pt-3">
+                        <label className="text-xs text-gray-400">Прозрачность изображения</label>
+                        <input 
+                          type="range" 
+                          min="0" 
+                          max="1" 
+                          step="0.05" 
+                          value={1 - settings.backgroundImageOpacity} 
+                          onChange={(e) => updateSettings({ backgroundImageOpacity: 1 - Number(e.target.value) })} 
+                          className="w-full accent-[#9146FF] h-8" 
+                        />
+                      </div>
+                    )}
                  </div>
 
                  <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-800">
