@@ -1,13 +1,13 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 
 import LivePreview from '@/components/LivePreview';
-import { getOverlayFrameStyle } from '@/lib/overlayLayout';
+import { colorWithOpacity, getOverlayFrameSegments } from '@/lib/overlayLayout';
 import { mapSettingsRow } from '@/lib/settingsMapper';
 import { supabase } from '@/lib/supabase/client';
-import { OBS_STATS_SYNC } from '@/lib/realtimeSync';
+import { OBS_SETTINGS_SYNC } from '@/lib/realtimeSync';
 import { useSettingsStore } from '@/store/useSettingsStore';
 
 interface OverlayState {
@@ -17,24 +17,13 @@ interface OverlayState {
   session_id: string | null;
 }
 
-interface StatsDebug {
-  statsError: string | null;
-  lastStatsFetchAt: string | null;
-  rowsCount: number;
-  firstUser: { username: string; count: number } | null;
-}
-
 function OverlayContent({ token }: { token: string }) {
   const searchParams = useSearchParams();
   const isDemo = searchParams.get('demo') === 'true';
-  const showDebug = searchParams.get('debug') === 'true';
 
   const [loading, setLoading] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const [settingsError, setSettingsError] = useState<string | null>(null);
-  const [realtimeStatus, setRealtimeStatus] = useState('INIT');
-  const [statsDebug, setStatsDebug] = useState<StatsDebug | null>(null);
+  const settingsSignatureRef = useRef('');
 
   const setAllSettings = useSettingsStore((state) => state.setAllSettings);
   const setPreviewMode = useSettingsStore((state) => state.setPreviewMode);
@@ -45,6 +34,15 @@ function OverlayContent({ token }: { token: string }) {
     (state) => state.settings.overlayBorderColor,
   );
   const overlayRadius = useSettingsStore((state) => state.settings.overlayRadius);
+  const backgroundMode = useSettingsStore((state) => state.settings.backgroundMode);
+  const backgroundColor = useSettingsStore((state) => state.settings.backgroundColor);
+  const backgroundOpacity = useSettingsStore(
+    (state) => state.settings.backgroundOpacity,
+  );
+  const overlayFrameSegments = getOverlayFrameSegments(
+    overlayBorderWidth,
+    overlayBorderColor,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -63,27 +61,26 @@ function OverlayContent({ token }: { token: string }) {
 
         if (cancelled) return;
         if (error) {
-          setSettingsError(error.message);
-          setSettingsLoaded(false);
           setSessionId(null);
           return;
         }
 
         const state = data as OverlayState | null;
         if (!state?.settings) {
-          setSettingsError('Overlay token was not found');
-          setSettingsLoaded(false);
           setSessionId(null);
           return;
         }
 
-        setAllSettings(mapSettingsRow(state.settings));
-        setSettingsError(null);
-        setSettingsLoaded(true);
+        const nextSettings = mapSettingsRow(state.settings);
+        const nextSignature = JSON.stringify(nextSettings);
+        if (settingsSignatureRef.current !== nextSignature) {
+          settingsSignatureRef.current = nextSignature;
+          setAllSettings(nextSettings);
+        }
         setSessionId(state.session_id ?? null);
       } catch (error) {
         if (!cancelled) {
-          setSettingsError(error instanceof Error ? error.message : String(error));
+          console.error('Failed to load overlay state:', error);
           setSessionId(null);
         }
       } finally {
@@ -93,7 +90,7 @@ function OverlayContent({ token }: { token: string }) {
     };
 
     void fetchState();
-    const interval = setInterval(fetchState, OBS_STATS_SYNC.pollIntervalMs);
+    const interval = setInterval(fetchState, OBS_SETTINGS_SYNC.pollIntervalMs);
 
     return () => {
       cancelled = true;
@@ -113,51 +110,21 @@ function OverlayContent({ token }: { token: string }) {
         minWidth: '100vw',
         minHeight: '100vh',
         overflow: 'hidden',
+        borderRadius: overlayRadius || '0px',
         boxSizing: 'border-box',
-        background: 'transparent',
+        backgroundColor:
+          backgroundMode === 'color'
+            ? colorWithOpacity(backgroundColor, backgroundOpacity)
+            : 'transparent',
       }}
     >
       <LivePreview
         sessionId={sessionId}
         overlayToken={token}
-        onRealtimeStatusChange={setRealtimeStatus}
-        onStatsDebug={setStatsDebug}
       />
-
-      <div
-        aria-hidden="true"
-        style={getOverlayFrameStyle(
-          overlayBorderWidth,
-          overlayBorderColor,
-          overlayRadius,
-        )}
-      />
-
-      {showDebug && (
-        <div className="pointer-events-none absolute top-4 left-4 z-[999] max-w-sm rounded-lg border border-yellow-500/50 bg-black/80 p-4 font-mono text-xs text-white shadow-2xl backdrop-blur-sm">
-          <h3 className="mb-2 border-b border-yellow-500/30 pb-1 font-bold text-yellow-400">
-            OVERLAY DEBUG
-          </h3>
-          <div>Settings: {settingsLoaded ? 'loaded' : 'not loaded'}</div>
-          <div>Session ID: {sessionId ?? 'offline'}</div>
-          <div>Realtime: {realtimeStatus}</div>
-          <div>Safety poll: {OBS_STATS_SYNC.pollIntervalMs} ms</div>
-          <div>Stats error: {statsDebug?.statsError ?? 'none'}</div>
-          <div>
-            Last fetch:{' '}
-            {statsDebug?.lastStatsFetchAt
-              ? new Date(statsDebug.lastStatsFetchAt).toLocaleTimeString()
-              : 'never'}
-          </div>
-          <div>Rows: {statsDebug?.rowsCount ?? 0}</div>
-          {statsDebug?.firstUser && (
-            <div>
-              Top: {statsDebug.firstUser.username} ({statsDebug.firstUser.count})
-            </div>
-          )}
-          {settingsError && <div className="mt-2 text-red-400">{settingsError}</div>}
-        </div>
-      )}
+      {overlayFrameSegments.map((style, index) => (
+        <div key={index} aria-hidden="true" style={style} />
+      ))}
     </div>
   );
 }

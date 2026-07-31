@@ -20,6 +20,19 @@ interface UsersState {
   users: Record<string, UserMessageCount>;
 }
 
+function hasSameUsers(
+  current: Record<string, UserMessageCount>,
+  next: Record<string, UserMessageCount>,
+): boolean {
+  const currentIds = Object.keys(current);
+  const nextIds = Object.keys(next);
+  if (currentIds.length !== nextIds.length) return false;
+  return nextIds.every((id) =>
+    current[id]?.username === next[id]?.username &&
+    current[id]?.count === next[id]?.count,
+  );
+}
+
 export function useMessageStats(
   sessionId: string | null,
   overlayToken?: string | null,
@@ -29,7 +42,6 @@ export function useMessageStats(
     users: {},
   });
   const [statsError, setStatsError] = useState<string | null>(null);
-  const [lastStatsFetchAt, setLastStatsFetchAt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -74,9 +86,12 @@ export function useMessageStats(
           };
         }
 
-        setUsersState({ sessionId, users });
+        setUsersState((current) =>
+          current.sessionId === sessionId && hasSameUsers(current.users, users)
+            ? current
+            : { sessionId, users },
+        );
         setStatsError(null);
-        setLastStatsFetchAt(new Date().toISOString());
       } finally {
         requestInFlight = false;
       }
@@ -111,6 +126,5 @@ export function useMessageStats(
     sortedUsers: Object.values(users).sort((first, second) => second.count - first.count),
     realtimeStatus: sessionId ? 'POLLING' : 'NO_SESSION',
     statsError,
-    lastStatsFetchAt,
   };
 }

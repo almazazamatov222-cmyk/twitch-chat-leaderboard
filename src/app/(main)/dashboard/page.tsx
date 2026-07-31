@@ -7,26 +7,17 @@ import { supabase } from '@/lib/supabase/client';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { mapSettingsRow } from '@/lib/settingsMapper';
 import SettingsPanel from '@/components/SettingsPanel';
-import { useSession } from '@/hooks/useSession';
-import DiagnosticPanel from '@/components/DiagnosticPanel';
-import { useDiagnostics } from '@/hooks/useDiagnostics';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [overlayToken, setOverlayToken] = useState<string>('');
-  const [twitchUsername, setTwitchUsername] = useState<string>('');
   const router = useRouter();
   
   const setAllSettings = useSettingsStore(state => state.setAllSettings);
   const previewMode = useSettingsStore(state => state.previewMode);
   const setPreviewMode = useSettingsStore(state => state.setPreviewMode);
   
-  const { activeSession } = useSession();
-  const realtimeStatus = 'POLLING';
-
-  const diag = useDiagnostics(user?.user_metadata?.provider_id || null);
-
   useEffect(() => {
     if (user?.user_metadata?.provider_id && overlayToken) {
       // Create/verify EventSub subscription on Dashboard load
@@ -43,9 +34,6 @@ export default function DashboardPage() {
       }).catch(err => console.error('Failed to subscribe:', err));
     }
   }, [overlayToken, user]);
-
-  // 16:9 Canvas Background modes
-  const [canvasBg, setCanvasBg] = useState<'grid' | 'light' | 'dark' | 'game'>('grid');
 
   useEffect(() => {
     const fetchUserAndSettings = async () => {
@@ -76,8 +64,6 @@ export default function DashboardPage() {
 
       if (data) {
         setOverlayToken(data.overlay_token);
-        setTwitchUsername(data.twitch_username);
-        
         setAllSettings(mapSettingsRow(data as Record<string, unknown>));
       }
       setLoading(false);
@@ -104,7 +90,7 @@ export default function DashboardPage() {
              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
              <span className="text-sm font-medium text-gray-300">Живой предпросмотр</span>
           </div>
-          <div className="flex gap-2 items-center">
+          <div className="flex items-center">
             <button 
               onClick={() => setPreviewMode(previewMode === 'demo' ? 'real' : 'demo')}
               className={`px-3 py-1 text-xs rounded transition-colors mr-4 font-bold ${
@@ -115,21 +101,16 @@ export default function DashboardPage() {
             >
               {previewMode === 'demo' ? 'Выключить ДЕМО' : 'Включить ДЕМО'}
             </button>
-            <button onClick={() => setCanvasBg('grid')} className={`px-3 py-1 text-xs rounded transition-colors ${canvasBg === 'grid' ? 'bg-[#9146FF] text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>Сетка</button>
-            <button onClick={() => setCanvasBg('light')} className={`px-3 py-1 text-xs rounded transition-colors ${canvasBg === 'light' ? 'bg-[#9146FF] text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>Светлый</button>
-            <button onClick={() => setCanvasBg('dark')} className={`px-3 py-1 text-xs rounded transition-colors ${canvasBg === 'dark' ? 'bg-[#9146FF] text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>Тёмный</button>
-            <button onClick={() => setCanvasBg('game')} className={`px-3 py-1 text-xs rounded transition-colors ${canvasBg === 'game' ? 'bg-[#9146FF] text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}>Игра</button>
           </div>
         </div>
 
         {/* Canvas Area */}
         <div className="flex-1 overflow-y-auto relative flex items-start justify-center p-4 lg:p-8"
           style={{
-            background: canvasBg === 'grid' ? 'url(https://transparenttextures.com/patterns/cubes.png) rgba(31, 41, 55, 0.2)' :
-                       canvasBg === 'light' ? '#f3f4f6' : 
-                       canvasBg === 'dark' ? '#111827' :
-                       'url(https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop) center/cover no-repeat',
-            backgroundColor: canvasBg === 'grid' ? 'rgba(31, 41, 55, 0.2)' : undefined
+            backgroundColor: '#0b1120',
+            backgroundImage:
+              'linear-gradient(rgba(71,85,105,.25) 1px, transparent 1px), linear-gradient(90deg, rgba(71,85,105,.25) 1px, transparent 1px)',
+            backgroundSize: '32px 32px',
           }}
         >
           {/* Container for OBS simulation */}
@@ -162,16 +143,8 @@ export default function DashboardPage() {
                </div>
              </div>
           </div>
-          
-          <DiagnosticPanel 
-            twitchUsername={twitchUsername}
-            sessionId={activeSession?.id ?? null}
-            realtimeStatus={realtimeStatus}
-            diag={diag}
-          />
         </div>
       </div>
     </div>
   );
 }
-

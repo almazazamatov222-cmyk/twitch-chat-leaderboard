@@ -5,7 +5,7 @@ import {
   calculateLeaderboardLayout,
   colorWithOpacity,
   getBackgroundModeForColor,
-  getOverlayFrameStyle,
+  getOverlayFrameSegments,
   getVisibleOverlayBorderWidth,
   getVisibleOverlayBorderColor,
   opacityFromTransparency,
@@ -89,9 +89,11 @@ test('activates a colored background when a color is selected', () => {
 });
 
 test('renders the overlay frame against the viewport above all content', () => {
-  const style = getOverlayFrameStyle('20px', '#ff0000', '0px');
-  assert.equal(style.position, 'fixed');
-  assert.equal(style.inset, 0);
-  assert.equal(style.border, '20px solid #ff0000');
-  assert.equal(style.zIndex, 2147483647);
+  const segments = getOverlayFrameSegments('20px', '#ff0000');
+  assert.equal(segments.length, 4);
+  assert.equal(segments[0].position, 'fixed');
+  assert.equal(segments[0].height, 20);
+  assert.equal(segments[2].width, 20);
+  assert.equal(segments[0].backgroundColor, '#ff0000');
+  assert.equal(segments[0].zIndex, 2147483647);
 });

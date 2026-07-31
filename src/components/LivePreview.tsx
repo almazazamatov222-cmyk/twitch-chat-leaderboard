@@ -58,44 +58,20 @@ function AnimatedCounter({ value, animationType, highlightColor, normalColor, te
 interface LivePreviewProps {
   sessionId?: string | null;
   overlayToken?: string | null;
-  onRealtimeStatusChange?: (status: string) => void;
-  onStatsDebug?: (debug: {
-    statsError: string | null;
-    lastStatsFetchAt: string | null;
-    rowsCount: number;
-    firstUser: { username: string; count: number } | null;
-  }) => void;
 }
 
-export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusChange, onStatsDebug }: LivePreviewProps) {
+export default function LivePreview({ sessionId, overlayToken }: LivePreviewProps) {
   const settings = useSettingsStore(state => state.settings);
   const previewMode = useSettingsStore(state => state.previewMode);
   
   // Real data
-  const { sortedUsers: realUsers, realtimeStatus, statsError, lastStatsFetchAt } = useMessageStats(sessionId || null, overlayToken);
-
-  useEffect(() => {
-    if (onRealtimeStatusChange) {
-      onRealtimeStatusChange(realtimeStatus);
-    }
-  }, [realtimeStatus, onRealtimeStatusChange]);
-
-  useEffect(() => {
-    if (onStatsDebug) {
-      onStatsDebug({
-        statsError,
-        lastStatsFetchAt,
-        rowsCount: realUsers.length,
-        firstUser: realUsers.length > 0 ? { username: realUsers[0].username, count: realUsers[0].count } : null
-      });
-    }
-  }, [statsError, lastStatsFetchAt, realUsers, onStatsDebug]);
+  const { sortedUsers: realUsers } = useMessageStats(sessionId || null, overlayToken);
 
   // Demo data generator
   const [demoUsers, setDemoUsers] = useState<{id: string, username: string, count: number}[]>([]);
   
   useEffect(() => {
-    if (previewMode === 'demo' || !sessionId) {
+    if (previewMode === 'demo') {
       // Generate some fake users
       const users = Array.from({ length: 50 }).map((_, i) => ({
         id: `demo-${i}`,
@@ -221,10 +197,7 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
       className="w-full h-full relative overflow-hidden box-border"
       style={{
         borderRadius: settings.overlayRadius || '0px',
-        backgroundColor:
-          settings.backgroundMode === 'color'
-            ? colorWithOpacity(settings.backgroundColor, settings.backgroundOpacity)
-            : 'transparent',
+        backgroundColor: 'transparent',
       }}
     >
       {/* Absolute Full-Screen Background Layer */}

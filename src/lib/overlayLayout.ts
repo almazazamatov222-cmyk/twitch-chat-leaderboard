@@ -40,25 +40,40 @@ export function getBackgroundModeForColor(
   return value.trim().toLowerCase() === 'transparent' ? 'transparent' : 'color';
 }
 
-export function getOverlayFrameStyle(
+interface OverlayFrameSegmentStyle {
+  position: 'fixed';
+  top?: number;
+  right?: number;
+  bottom?: number;
+  left?: number;
+  width?: number;
+  height?: number;
+  backgroundColor: string;
+  pointerEvents: 'none';
+  zIndex: number;
+}
+
+export function getOverlayFrameSegments(
   widthValue: string,
   colorValue: string,
-  radius: string,
-) {
+): OverlayFrameSegmentStyle[] {
   const width = getVisibleOverlayBorderWidth(widthValue);
   const color = getVisibleOverlayBorderColor(colorValue, width);
+  if (width <= 0) return [];
 
-  return {
+  const base = {
     position: 'fixed' as const,
-    inset: 0,
-    width: '100vw',
-    height: '100vh',
-    border: width > 0 ? `${width}px solid ${color}` : 'none',
-    borderRadius: radius || '0px',
-    boxSizing: 'border-box' as const,
+    backgroundColor: color,
     pointerEvents: 'none' as const,
     zIndex: 2147483647,
   };
+
+  return [
+    { ...base, top: 0, left: 0, right: 0, height: width },
+    { ...base, bottom: 0, left: 0, right: 0, height: width },
+    { ...base, top: 0, bottom: 0, left: 0, width },
+    { ...base, top: 0, bottom: 0, right: 0, width },
+  ];
 }
 
 export function colorWithOpacity(color: string, opacity: number): string {

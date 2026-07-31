@@ -101,7 +101,7 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
         }
         return currentStatus;
       });
-    }, 2000);
+    }, 30_000);
 
     return () => { 
       isMounted = false; 
@@ -262,28 +262,6 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
                 <p className="text-[11px] leading-relaxed text-gray-500">
                   До 25 участников — одна колонка. Для топа 30–50 включаются две
                   колонки, а строки и отступы автоматически уменьшаются под 500×800.
-                </p>
-              </div>
-
-              <div className="space-y-2 pt-4 border-t border-gray-800">
-                <label className="text-xs text-gray-400">
-                  Дополнительные боты (через запятую)
-                </label>
-                <input
-                  type="text"
-                  value={settings.botUsers.join(', ')}
-                  onChange={(e) => updateSettings({
-                    botUsers: e.target.value
-                      .split(',')
-                      .map((username) => username.trim())
-                      .filter(Boolean),
-                  })}
-                  placeholder="например: mycustombot, anotherbot"
-                  className="w-full bg-gray-900 border border-gray-700 rounded p-2 text-sm focus:border-[#9146FF] outline-none"
-                />
-                <p className="text-[11px] leading-relaxed text-gray-500">
-                  Nightbot, StreamElements, WizeBot и другие популярные боты уже
-                  исключаются автоматически.
                 </p>
               </div>
 
