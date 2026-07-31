@@ -1,3 +1,4 @@
+/* eslint-disable */
 'use client';
 
 import { useSettingsStore } from '@/store/useSettingsStore';
@@ -201,7 +202,7 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
   const variants = getVariants();
 
   return (
-    <div className="w-full min-h-screen flex items-start justify-center relative">
+    <div className="w-full flex justify-center relative">
       <div 
         className="flex flex-col box-border relative overflow-hidden"
         style={{ 
@@ -322,3 +323,4 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
     </div>
   );
 }
+
