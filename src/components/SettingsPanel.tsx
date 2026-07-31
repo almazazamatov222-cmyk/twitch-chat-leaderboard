@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { FONT_CATEGORIES } from '@/lib/fonts';
 import { supabase } from '@/lib/supabase/client';
 import { useDebounce } from '@/hooks/useDebounce';
+import { opacityFromTransparency } from '@/lib/overlayLayout';
 
 interface AccordionHeaderProps {
   id: string;
@@ -346,6 +347,32 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
           {activeSection === 'rows' && (
             <div className="p-4 space-y-5 bg-gray-950 border-b border-gray-800">
                <div className="space-y-4">
+                 <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-1">
+                     <label className="text-xs text-gray-400">Фон строк (за ником)</label>
+                     <input
+                       type="color"
+                       value={parseRgba(settings.rowColor).hex}
+                       onChange={(e) => updateSettings({ rowColor: e.target.value })}
+                       className="w-full h-8 rounded border-0 p-0 cursor-pointer"
+                     />
+                   </div>
+                   <div className="space-y-1">
+                     <label className="text-xs text-gray-400">Прозрачность строк</label>
+                     <input
+                       type="range"
+                       min="0"
+                       max="1"
+                       step="0.05"
+                       value={1 - settings.rowOpacity}
+                       onChange={(e) => updateSettings({
+                         rowOpacity: opacityFromTransparency(Number(e.target.value)),
+                       })}
+                       className="w-full accent-[#9146FF] h-8"
+                     />
+                   </div>
+                 </div>
+
                  <div className="grid grid-cols-2 gap-4">
                    <div className="space-y-1">
                      <label className="text-xs text-gray-400">Цвет фона</label>

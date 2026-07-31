@@ -14,6 +14,55 @@ export function getVisibleOverlayBorderWidth(value: string): number {
   return Math.max(2, width);
 }
 
+export function getVisibleOverlayBorderColor(
+  value: string,
+  width: number,
+): string {
+  if (width <= 0) return 'transparent';
+  const normalized = value.trim().toLowerCase();
+  if (
+    !normalized ||
+    normalized === 'transparent' ||
+    /rgba\([^)]*,\s*0(?:\.0+)?\s*\)/.test(normalized)
+  ) {
+    return '#ff0000';
+  }
+  return value;
+}
+
+export function opacityFromTransparency(value: number): number {
+  return 1 - Math.min(1, Math.max(0, value));
+}
+
+export function colorWithOpacity(color: string, opacity: number): string {
+  const alpha = Math.min(1, Math.max(0, opacity));
+  const normalized = color.trim();
+  const rgba = normalized.match(
+    /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*[\d.]+)?\s*\)$/i,
+  );
+
+  if (rgba) {
+    return `rgba(${rgba[1]}, ${rgba[2]}, ${rgba[3]}, ${alpha})`;
+  }
+
+  if (/^#[0-9a-f]{3}$/i.test(normalized)) {
+    const [r, g, b] = normalized
+      .slice(1)
+      .split('')
+      .map((part) => Number.parseInt(part + part, 16));
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  if (/^#[0-9a-f]{6}$/i.test(normalized)) {
+    const r = Number.parseInt(normalized.slice(1, 3), 16);
+    const g = Number.parseInt(normalized.slice(3, 5), 16);
+    const b = Number.parseInt(normalized.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  return normalized === 'transparent' ? 'transparent' : color;
+}
+
 export interface LeaderboardLayoutInput {
   userCount: number;
   showTitle: boolean;
@@ -123,8 +172,8 @@ export function calculateLeaderboardLayout({
     itemPadding: `${Math.max(1, Math.floor(fittedRowHeight * 0.1))}px ${
       columns === 2 ? 6 : 10
     }px`,
-    itemContentGap: columns === 2 ? 4 : 8,
-    positionWidth: columns === 2 ? 24 : 30,
+    itemContentGap: columns === 2 ? 6 : 8,
+    positionWidth: columns === 2 ? 32 : 30,
   };
 }
 

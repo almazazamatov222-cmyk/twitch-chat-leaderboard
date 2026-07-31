@@ -7,6 +7,8 @@ import { useMessageStats } from '@/hooks/useMessageStats';
 import { useEffect, useState } from 'react';
 import {
   calculateLeaderboardLayout,
+  colorWithOpacity,
+  getVisibleOverlayBorderColor,
   getVisibleOverlayBorderWidth,
   scalePixelValue,
 } from '@/lib/overlayLayout';
@@ -130,6 +132,10 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
   });
   const overlayBorderWidth = getVisibleOverlayBorderWidth(
     settings.overlayBorderWidth,
+  );
+  const overlayBorderColor = getVisibleOverlayBorderColor(
+    settings.overlayBorderColor,
+    overlayBorderWidth,
   );
 
   const hexToRgba = (hex: string, opacity: number) => {
@@ -302,7 +308,10 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
                       transition={variants.transition as any}
                       className={`flex items-center justify-between relative overflow-hidden box-border`}
                       style={{
-                        backgroundColor: hexToRgba(settings.rowColor, settings.rowOpacity),
+                        backgroundColor: colorWithOpacity(
+                          settings.rowColor,
+                          settings.rowOpacity,
+                        ),
                         padding: layout.compact
                           ? layout.itemPadding
                           : settings.rowPadding || '12px 16px',
@@ -330,6 +339,7 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
                             width: `${layout.positionWidth}px`,
                             flexShrink: 0,
                             textAlign: 'center',
+                            whiteSpace: 'nowrap',
                           }}
                         >
                           #{index + 1}
@@ -383,7 +393,9 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
           className="pointer-events-none absolute inset-0 z-50"
           style={{
             borderRadius: settings.overlayRadius || '0px',
-            boxShadow: `inset 0 0 0 ${overlayBorderWidth}px ${settings.overlayBorderColor}`,
+            border: `${overlayBorderWidth}px solid ${overlayBorderColor}`,
+            boxSizing: 'border-box',
+            zIndex: 9999,
           }}
         />
       )}

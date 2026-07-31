@@ -14,7 +14,9 @@ export function mapSettingsRow(row: Record<string, unknown>): OverlaySettings {
   }
 
   let rawRowColor =
-    typeof row.row_background === 'string'
+    typeof row.row_color === 'string'
+      ? row.row_color
+      : typeof row.row_background === 'string'
       ? row.row_background
       : defaultSettings.rowColor;
 
