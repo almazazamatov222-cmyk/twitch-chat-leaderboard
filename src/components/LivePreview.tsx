@@ -1,9 +1,57 @@
 'use client';
 
 import { useSettingsStore } from '@/store/useSettingsStore';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, animate } from 'framer-motion';
 import { useMessageStats } from '@/hooks/useMessageStats';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+
+function AnimatedCounter({ value, animationType, highlightColor, normalColor, textStyle, className }: any) {
+  const nodeRef = useRef<HTMLSpanElement>(null);
+  const prevValue = useRef(value);
+
+  useEffect(() => {
+    if (animationType !== 'smooth') return;
+    const from = prevValue.current;
+    const to = value;
+    const controls = animate(from, to, {
+      duration: 0.5,
+      onUpdate(v) {
+        if (nodeRef.current) {
+          nodeRef.current.textContent = Math.round(v).toLocaleString('ru-RU');
+        }
+      }
+    });
+    prevValue.current = value;
+    return () => controls.stop();
+  }, [value, animationType]);
+
+  if (animationType === 'smooth') {
+    return (
+      <span ref={nodeRef} className={className} style={textStyle}>
+        {value.toLocaleString('ru-RU')}
+      </span>
+    );
+  }
+
+  const getInitial = () => {
+    if (animationType === 'pop') return { scale: 1.5, color: highlightColor };
+    if (animationType === 'pulse') return { opacity: 0.3, scale: 0.8, color: highlightColor };
+    return false; // none
+  };
+
+  return (
+    <motion.div 
+      key={value}
+      initial={getInitial()}
+      animate={{ scale: 1, opacity: 1, color: normalColor }}
+      transition={{ duration: 0.3 }}
+      className={className}
+      style={textStyle}
+    >
+      {value.toLocaleString('ru-RU')}
+    </motion.div>
+  );
+}
 
 interface LivePreviewProps {
   sessionId?: string | null;
@@ -254,19 +302,17 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
 
                       {/* Counter */}
                       {settings.elementShowCount && (
-                        <motion.div 
-                          key={`${user.id}-${user.count}`}
-                          initial={settings.counterAnimation === 'pop' ? { scale: 1.5, color: settings.highlightColor } : false}
-                          animate={{ scale: 1, color: settings.counterColor }}
-                          transition={{ duration: 0.3 }}
-                          className="whitespace-nowrap"
-                          style={{ 
+                        <AnimatedCounter
+                          value={user.count}
+                          animationType={settings.counterAnimation}
+                          highlightColor={settings.highlightColor}
+                          normalColor={settings.counterColor}
+                          textStyle={{
                             ...getTextStyle('counter'),
                             fontVariantNumeric: 'tabular-nums',
                           }}
-                        >
-                          {user.count.toLocaleString('ru-RU')}
-                        </motion.div>
+                          className="whitespace-nowrap"
+                        />
                       )}
                     </div>
                   </motion.div>
