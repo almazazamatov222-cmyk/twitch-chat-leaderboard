@@ -5,6 +5,11 @@ import { useSettingsStore } from '@/store/useSettingsStore';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { useMessageStats } from '@/hooks/useMessageStats';
 import { useEffect, useState } from 'react';
+import {
+  calculateLeaderboardLayout,
+  getVisibleOverlayBorderWidth,
+  scalePixelValue,
+} from '@/lib/overlayLayout';
 
 function AnimatedCounter({ value, animationType, highlightColor, normalColor, textStyle, className }: any) {
   const motionValue = useMotionValue(value);
@@ -116,6 +121,16 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
 
   const displayUsers = previewMode === 'demo' ? demoUsers : realUsers;
   const topUsers = displayUsers.slice(0, settings.topCount);
+  const layout = calculateLeaderboardLayout({
+    userCount: topUsers.length,
+    showTitle: settings.showTitle,
+    titleSize: settings.titleSize,
+    rowHeight: settings.rowHeight,
+    rowGap: settings.rowGap,
+  });
+  const overlayBorderWidth = getVisibleOverlayBorderWidth(
+    settings.overlayBorderWidth,
+  );
 
   const hexToRgba = (hex: string, opacity: number) => {
     if (!hex || hex === 'transparent') return 'transparent';
@@ -141,7 +156,11 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
     return hex;
   };
 
-  const getTextStyle = (prefix: 'title' | 'position' | 'username' | 'counter') => {
+  const getTextStyle = (
+    prefix: 'title' | 'position' | 'username' | 'counter',
+    scale = 1,
+    maximumSize?: number,
+  ) => {
     const s = settings as any;
     let shadowString = 'none';
     const shadowColor = s[`${prefix}ShadowColor`];
@@ -150,7 +169,7 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
     }
     return {
       fontFamily: `'${s[`${prefix}Font`]}', sans-serif`,
-      fontSize: s[`${prefix}Size`],
+      fontSize: scalePixelValue(s[`${prefix}Size`], scale, maximumSize),
       fontWeight: s[`${prefix}Weight`] === 'bold' ? 700 : (s[`${prefix}Weight`] === 'normal' ? 400 : Number(s[`${prefix}Weight`])),
       color: s[`${prefix}Color`],
       letterSpacing: s[`${prefix}LetterSpacing`],
@@ -204,7 +223,6 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
     <div 
       className="w-full h-full relative overflow-hidden box-border"
       style={{
-        border: parseInt(settings.overlayBorderWidth) > 0 ? `${settings.overlayBorderWidth} solid ${settings.overlayBorderColor}` : 'none',
         borderRadius: settings.overlayRadius || '0px',
         backgroundColor: settings.backgroundMode === 'color' ? hexToRgba(settings.backgroundColor, settings.backgroundOpacity) : 'transparent',
       }}
@@ -243,23 +261,32 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
           style={{ 
             width: settings.rowWidth,
             maxWidth: '100%',
-            padding: '40px 32px 32px 32px', // Base padding for the content
-            height: 'fit-content' // Just wrap the content
+            padding: layout.contentPadding,
+            height: '100%'
           }}
         >
         <div className="relative z-10 w-full">
           {settings.showTitle && (
             <h2 
-              className="mb-6 text-center"
-              style={getTextStyle('title')}
+              className="text-center"
+              style={{
+                ...getTextStyle('title', layout.titleTextScale),
+                marginBottom: `${layout.titleMarginBottom}px`,
+              }}
             >
               {settings.titleText}
             </h2>
           )}
 
           <div 
-            className="flex flex-col relative w-full" 
-            style={{ gap: `${settings.rowGap}px` }}
+            className="relative grid w-full"
+            style={{
+              gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))`,
+              gridTemplateRows: `repeat(${layout.rowsPerColumn}, ${layout.rowHeight}px)`,
+              gridAutoFlow: 'column',
+              rowGap: `${layout.rowGap}px`,
+              columnGap: `${layout.columnGap}px`,
+            }}
           >
             <AnimatePresence mode="popLayout">
               {topUsers.map((user, index) => {
@@ -276,22 +303,32 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
                       className={`flex items-center justify-between relative overflow-hidden box-border`}
                       style={{
                         backgroundColor: hexToRgba(settings.rowColor, settings.rowOpacity),
-                        padding: settings.rowPadding || '12px 16px',
+                        padding: layout.compact
+                          ? layout.itemPadding
+                          : settings.rowPadding || '12px 16px',
                         borderRadius: settings.rowRadius || '8px',
                         border: parseInt(settings.rowBorderWidth) > 0 ? `${settings.rowBorderWidth} solid ${settings.rowBorderColor}` : 'none',
                         boxShadow: settings.rowShadowEnabled ? `0px 4px 12px rgba(0,0,0,0.3)` : 'none',
-                        height: settings.rowHeight !== 'auto' ? settings.rowHeight : undefined,
-                        minHeight: settings.rowHeight === 'auto' ? '40px' : undefined
+                        height: `${layout.rowHeight}px`,
+                        minHeight: `${layout.rowHeight}px`,
                       }}
                     >
-                    <div className="flex items-center gap-4 w-full z-10 relative">
+                    <div
+                      className="flex w-full items-center relative z-10"
+                      style={{ gap: `${layout.itemContentGap}px` }}
+                    >
                       {/* Position */}
                       {settings.elementShowRank && (
                         <div 
                           style={{ 
-                            ...getTextStyle('position'),
+                            ...getTextStyle(
+                              'position',
+                              layout.textScale,
+                              layout.compact ? layout.rowHeight * 0.55 : undefined,
+                            ),
                             color: getPositionColor(index),
-                            width: '40px',
+                            width: `${layout.positionWidth}px`,
+                            flexShrink: 0,
                             textAlign: 'center',
                           }}
                         >
@@ -303,7 +340,11 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
                       {settings.elementShowName && (
                         <div 
                           className="flex-1 truncate"
-                          style={getTextStyle('username')}
+                          style={getTextStyle(
+                            'username',
+                            layout.textScale,
+                            layout.compact ? layout.rowHeight * 0.55 : undefined,
+                          )}
                         >
                           {user.username}
                         </div>
@@ -317,7 +358,11 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
                           highlightColor={settings.highlightColor}
                           normalColor={settings.counterColor}
                           textStyle={{
-                            ...getTextStyle('counter'),
+                            ...getTextStyle(
+                              'counter',
+                              layout.textScale,
+                              layout.compact ? layout.rowHeight * 0.55 : undefined,
+                            ),
                             fontVariantNumeric: 'tabular-nums',
                           }}
                           className="whitespace-nowrap"
@@ -332,6 +377,16 @@ export default function LivePreview({ sessionId, overlayToken, onRealtimeStatusC
         </div>
       </div>
       </div>
+      {overlayBorderWidth > 0 && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-50"
+          style={{
+            borderRadius: settings.overlayRadius || '0px',
+            boxShadow: `inset 0 0 0 ${overlayBorderWidth}px ${settings.overlayBorderColor}`,
+          }}
+        />
+      )}
     </div>
   );
 }

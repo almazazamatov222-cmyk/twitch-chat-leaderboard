@@ -255,6 +255,10 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
                   <option value={40}>Топ 40</option>
                   <option value={50}>Топ 50</option>
                 </select>
+                <p className="text-[11px] leading-relaxed text-gray-500">
+                  До 25 участников — одна колонка. Для топа 30–50 включаются две
+                  колонки, а строки и отступы автоматически уменьшаются под 500×800.
+                </p>
               </div>
 
               <div className="pt-4 border-t border-gray-800">
@@ -453,7 +457,12 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
                         <input 
                           type="checkbox" 
                           checked={parseInt(settings.overlayBorderWidth) > 0}
-                          onChange={(e) => updateSettings({ overlayBorderWidth: e.target.checked ? '1px' : '0px' })}
+                          onChange={(e) => updateSettings({
+                            overlayBorderWidth: e.target.checked ? '2px' : '0px',
+                            ...(e.target.checked && settings.overlayBorderColor === 'transparent'
+                              ? { overlayBorderColor: '#ff0000' }
+                              : {}),
+                          })}
                           className="accent-[#9146FF]"
                         />
                         Рамка оверлея
@@ -461,8 +470,8 @@ export default function SettingsPanel({ overlayToken, twitchId }: { overlayToken
                     </div>
                     {parseInt(settings.overlayBorderWidth) > 0 && (
                       <div className="space-y-1 col-span-2">
-                        <label className="text-xs text-gray-400">Толщина рамки оверлея (px)</label>
-                        <input type="number" min="1" value={parseInt(settings.overlayBorderWidth) || 1} onChange={(e) => updateSettings({ overlayBorderWidth: `${e.target.value}px` })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
+                        <label className="text-xs text-gray-400">Толщина рамки оверлея (минимум 2 px)</label>
+                        <input type="number" min="2" value={Math.max(2, parseInt(settings.overlayBorderWidth) || 2)} onChange={(e) => updateSettings({ overlayBorderWidth: `${Math.max(2, Number(e.target.value) || 2)}px` })} className="w-full bg-gray-900 border border-gray-700 rounded px-2 py-1.5 text-sm" />
                       </div>
                     )}
                  </div>
