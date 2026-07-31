@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import type { User } from '@supabase/supabase-js';
+import { History } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { mapSettingsRow } from '@/lib/settingsMapper';
@@ -78,8 +80,20 @@ export default function DashboardPage() {
   return (
     <div className="flex h-screen bg-gray-950 text-white overflow-hidden font-sans">
       {/* Левая панель - Настройки */}
-      <div className="w-[380px] lg:w-[430px] h-full flex-shrink-0 z-20 shadow-2xl relative">
-        <SettingsPanel overlayToken={overlayToken} twitchId={user?.user_metadata?.provider_id || null} />
+      <div className="w-[380px] lg:w-[430px] h-full flex-shrink-0 z-20 shadow-2xl relative flex flex-col bg-gray-950 border-r border-gray-800">
+        <div className="flex-1 min-h-0">
+          <SettingsPanel overlayToken={overlayToken} twitchId={user?.user_metadata?.provider_id || null} />
+        </div>
+        <div className="flex-shrink-0 border-t border-gray-800 bg-gray-950 p-3">
+          <Link
+            href="/dashboard/history"
+            prefetch={false}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#9146FF]/50 bg-[#9146FF]/15 px-4 py-3 font-semibold text-white transition-colors hover:bg-[#9146FF]/25"
+          >
+            <History size={18} />
+            Вся история стримов
+          </Link>
+        </div>
       </div>
 
       {/* Правая панель - Предпросмотр 16:9 */}
